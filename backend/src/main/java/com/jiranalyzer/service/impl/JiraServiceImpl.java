@@ -40,7 +40,7 @@ public class JiraServiceImpl implements JiraService {
     public List<JiraStoryResponse> fetchAssignedStories() {
         log.info("Fetching assigned Jira stories");
         String jql = "assignee=currentUser() AND status != Done ORDER BY updated DESC";
-        String url = jiraConfig.getBaseUrl() + "/rest/api/3/search?jql=" + encodeJql(jql)
+        String url = jiraConfig.getBaseUrl() + "/rest/api/3/search/jql?jql=" + encodeJql(jql)
                 + "&fields=summary,description,status,priority,assignee,issuetype&maxResults=50";
 
         try {
@@ -110,7 +110,7 @@ public class JiraServiceImpl implements JiraService {
         return JiraStoryResponse.builder()
                 .key(getTextValue(issue, "key"))
                 .summary(getTextValue(fields, "summary"))
-                .description(extractDescription(fields.get("description")))
+                .description(extractDescription(fields != null ? fields.get("description") : null))
                 .status(getNestedTextValue(fields, "status", "name"))
                 .priority(getNestedTextValue(fields, "priority", "name"))
                 .assignee(getNestedTextValue(fields, "assignee", "displayName"))
