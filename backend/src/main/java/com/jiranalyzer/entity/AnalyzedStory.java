@@ -31,7 +31,7 @@ public class AnalyzedStory {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "jira_key", nullable = false)
+    @Column(name = "jira_key", nullable = false, unique = true)
     private String jiraKey;
 
     @Column(name = "title", nullable = false)
