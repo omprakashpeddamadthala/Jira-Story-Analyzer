@@ -14,6 +14,7 @@ import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -37,17 +38,25 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
             String apiContracts = generateApiContracts(request);
             String testSuggestions = generateTestSuggestions(request);
 
-            AnalyzedStory story = AnalyzedStory.builder()
-                    .jiraKey(request.getJiraKey())
-                    .title(request.getTitle())
-                    .description(request.getDescription())
-                    .acceptanceCriteria(request.getAcceptanceCriteria())
-                    .definitionOfDone(request.getDefinitionOfDone())
-                    .simplifiedSummary(simplifiedSummary)
-                    .implementationPlan(implementationPlan)
-                    .apiContracts(apiContracts)
-                    .testSuggestions(testSuggestions)
-                    .build();
+            Optional<AnalyzedStory> existingStory = analyzedStoryRepository.findByJiraKey(request.getJiraKey());
+
+            AnalyzedStory story;
+            if (existingStory.isPresent()) {
+                story = existingStory.get();
+                log.info("Updating existing analysis for story: {}", request.getJiraKey());
+            } else {
+                story = new AnalyzedStory();
+                story.setJiraKey(request.getJiraKey());
+            }
+
+            story.setTitle(request.getTitle());
+            story.setDescription(request.getDescription());
+            story.setAcceptanceCriteria(request.getAcceptanceCriteria());
+            story.setDefinitionOfDone(request.getDefinitionOfDone());
+            story.setSimplifiedSummary(simplifiedSummary);
+            story.setImplementationPlan(implementationPlan);
+            story.setApiContracts(apiContracts);
+            story.setTestSuggestions(testSuggestions);
 
             AnalyzedStory savedStory = analyzedStoryRepository.save(story);
             log.info("Story analysis saved with ID: {}", savedStory.getId());

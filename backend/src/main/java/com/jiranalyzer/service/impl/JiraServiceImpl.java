@@ -110,7 +110,7 @@ public class JiraServiceImpl implements JiraService {
         return JiraStoryResponse.builder()
                 .key(getTextValue(issue, "key"))
                 .summary(getTextValue(fields, "summary"))
-                .description(extractDescription(fields.get("description")))
+                .description(extractDescription(fields != null ? fields.get("description") : null))
                 .status(getNestedTextValue(fields, "status", "name"))
                 .priority(getNestedTextValue(fields, "priority", "name"))
                 .assignee(getNestedTextValue(fields, "assignee", "displayName"))
