@@ -22,11 +22,24 @@ spring:
 
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY:}
+      api-key: ${OPENAI_API_KEY:#{null}}
       chat:
         options:
           model: gpt-4o
           temperature: 0.7
+
+# AI Provider Configuration
+# Switch between providers by changing ai.provider to "openai" or "gemini"
+ai:
+  provider: ${AI_PROVIDER:openai}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model: gpt-4o
+    temperature: 0.7
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: gemini-2.0-flash
+    temperature: 0.7
 
 jira:
   base-url: ${JIRA_BASE_URL:https://your-domain.atlassian.net}
