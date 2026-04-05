@@ -17,6 +17,7 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import type { AnalyzedStory, StreamingState } from '../types';
+import { colors } from '../theme/theme';
 
 interface AnalysisResultProps {
   result: AnalyzedStory | null;
@@ -43,6 +44,7 @@ function LoadingSkeleton() {
           height={24}
           sx={{
             mb: i === 3 || i === 6 ? 2 : 0.5,
+            bgcolor: `${colors.surfaceContainerHighest}80`,
             animation: 'shimmer 1.8s ease-in-out infinite',
             animationDelay: `${i * 0.1}s`,
             '@keyframes shimmer': {
@@ -58,38 +60,52 @@ function LoadingSkeleton() {
 }
 
 const markdownStyles = {
-  '& h1': { fontSize: '1.5rem', fontWeight: 700, mt: 2.5, mb: 1.5, color: '#1a1a2e' },
+  '& h1': {
+    fontSize: '1.5rem',
+    fontWeight: 700,
+    fontFamily: '"Manrope", sans-serif',
+    mt: 2.5,
+    mb: 1.5,
+    color: colors.onSurface,
+  },
   '& h2': {
     fontSize: '1.25rem',
     fontWeight: 600,
+    fontFamily: '"Manrope", sans-serif',
     mt: 3,
     mb: 1,
-    color: '#16213e',
+    color: colors.primary,
     pb: 0.5,
-    borderBottom: '2px solid',
-    borderColor: 'secondary.light',
+    borderBottom: `2px solid ${colors.outlineVariant}30`,
   },
-  '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 2, mb: 0.5, color: '#0f3460' },
-  '& p': { fontSize: '0.95rem', lineHeight: 1.8, mb: 1.5, color: '#333' },
+  '& h3': {
+    fontSize: '1.1rem',
+    fontWeight: 600,
+    fontFamily: '"Manrope", sans-serif',
+    mt: 2,
+    mb: 0.5,
+    color: colors.onSurface,
+  },
+  '& p': { fontSize: '0.95rem', lineHeight: 1.8, mb: 1.5, color: colors.onSurfaceVariant },
   '& ul, & ol': { pl: 3, mb: 1.5 },
-  '& li': { fontSize: '0.95rem', lineHeight: 1.8, mb: 0.5 },
+  '& li': { fontSize: '0.95rem', lineHeight: 1.8, mb: 0.5, color: colors.onSurfaceVariant },
   '& code': {
-    backgroundColor: 'rgba(101, 84, 192, 0.08)',
+    backgroundColor: `${colors.primaryContainer}30`,
     borderRadius: '4px',
     px: 0.8,
     py: 0.2,
     fontSize: '0.85rem',
     fontFamily: '"Fira Code", "Consolas", monospace',
-    color: '#6554C0',
+    color: colors.primary,
   },
   '& pre': {
-    backgroundColor: '#1e1e2e',
-    color: '#cdd6f4',
-    borderRadius: '10px',
+    backgroundColor: colors.surfaceContainerLowest,
+    color: colors.onSurface,
+    borderRadius: '12px',
     p: 2.5,
     overflow: 'auto',
     mb: 2,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+    border: `1px solid ${colors.outlineVariant}30`,
     '& code': {
       backgroundColor: 'transparent',
       color: 'inherit',
@@ -101,25 +117,29 @@ const markdownStyles = {
     borderCollapse: 'collapse',
     mb: 2,
     '& th, & td': {
-      border: '1px solid #e0e0e0',
+      border: `1px solid ${colors.outlineVariant}40`,
       p: 1.2,
       fontSize: '0.9rem',
+      color: colors.onSurfaceVariant,
     },
-    '& th': { backgroundColor: '#f0f0f8', fontWeight: 600, color: '#333' },
+    '& th': {
+      backgroundColor: colors.surfaceContainerHigh,
+      fontWeight: 600,
+      color: colors.onSurface,
+    },
   },
   '& blockquote': {
-    borderLeft: '4px solid',
-    borderColor: 'secondary.main',
+    borderLeft: `4px solid ${colors.tertiary}`,
     pl: 2,
     ml: 0,
     my: 2,
-    color: 'text.secondary',
+    color: colors.onSurfaceVariant,
     fontStyle: 'italic',
-    backgroundColor: 'rgba(101, 84, 192, 0.04)',
+    backgroundColor: `${colors.tertiaryContainer}15`,
     borderRadius: '0 8px 8px 0',
     py: 1,
   },
-  '& hr': { my: 3, borderColor: 'divider' },
+  '& hr': { my: 3, borderColor: `${colors.outlineVariant}30` },
   animation: 'slideUp 0.6s ease-out',
   '@keyframes slideUp': {
     from: { opacity: 0, transform: 'translateY(20px)' },
@@ -163,16 +183,10 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
           overflow: 'visible',
           ...(isStreaming
             ? {
-                boxShadow: '0 0 24px rgba(101, 84, 192, 0.25)',
-                border: '1px solid',
-                borderColor: 'secondary.light',
+                boxShadow: `0 0 32px ${colors.primaryContainer}40`,
+                border: `1px solid ${colors.primary}30`,
               }
-            : {
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                '&:hover': {
-                  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
-                },
-              }),
+            : {}),
         }}
       >
         <CardContent sx={{ p: 3 }}>
@@ -182,10 +196,11 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
             alignItems="center"
             justifyContent="space-between"
             mb={2.5}
+            flexWrap="wrap"
+            gap={2}
             sx={{
               pb: 2,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
+              borderBottom: `1px solid ${colors.outlineVariant}20`,
             }}
           >
             <Box display="flex" alignItems="center" gap={1.5}>
@@ -194,16 +209,24 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
                   width: 40,
                   height: 40,
                   borderRadius: 2,
-                  background: 'linear-gradient(135deg, #6554C0 0%, #0052CC 100%)',
+                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryContainer} 100%)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <CopilotIcon sx={{ color: 'white', fontSize: 22 }} />
+                <CopilotIcon sx={{ color: colors.onPrimary, fontSize: 22 }} />
               </Box>
               <Box>
-                <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontFamily: '"Manrope", sans-serif',
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    color: colors.onSurface,
+                  }}
+                >
                   Copilot Implementation Prompt
                 </Typography>
                 <Box display="flex" gap={0.8} mt={0.5}>
@@ -213,8 +236,9 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
                       size="small"
                       sx={{
                         fontWeight: 600,
-                        background: 'linear-gradient(135deg, #0052CC 0%, #6554C0 100%)',
-                        color: 'white',
+                        bgcolor: `${colors.primary}20`,
+                        color: colors.primary,
+                        border: `1px solid ${colors.primary}30`,
                       }}
                     />
                   )}
@@ -223,8 +247,7 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
                       label={streamingState.provider}
                       size="small"
                       variant="outlined"
-                      color="secondary"
-                      sx={{ fontWeight: 500 }}
+                      sx={{ fontWeight: 500, borderColor: colors.outlineVariant, color: colors.onSurfaceVariant }}
                     />
                   )}
                   {result?.createdAt && (
@@ -232,7 +255,7 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
                       label={new Date(result.createdAt).toLocaleString()}
                       size="small"
                       variant="outlined"
-                      sx={{ fontSize: '0.7rem' }}
+                      sx={{ fontSize: '0.65rem', borderColor: colors.outlineVariant, color: colors.onSurfaceVariant }}
                     />
                   )}
                 </Box>
@@ -246,16 +269,16 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
                 onClick={handleCopy}
                 sx={{
                   minWidth: 180,
-                  borderRadius: 2,
                   py: 1,
                   fontWeight: 700,
                   background: copied
                     ? 'linear-gradient(135deg, #36B37E 0%, #00875A 100%)'
-                    : 'linear-gradient(135deg, #6554C0 0%, #403294 100%)',
+                    : `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryContainer} 100%)`,
+                  color: colors.onPrimary,
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     transform: 'translateY(-1px)',
-                    boxShadow: '0 4px 12px rgba(101, 84, 192, 0.4)',
+                    boxShadow: `0 4px 16px ${colors.primary}40`,
                   },
                 }}
               >
@@ -272,19 +295,11 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
               elevation={0}
               sx={{
                 p: 3,
-                backgroundColor: '#FAFBFE',
+                bgcolor: colors.surfaceContainerLow,
                 borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'rgba(101, 84, 192, 0.12)',
+                border: `1px solid ${colors.outlineVariant}20`,
                 maxHeight: '70vh',
                 overflow: 'auto',
-                '&::-webkit-scrollbar': {
-                  width: 6,
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: 'rgba(101, 84, 192, 0.3)',
-                  borderRadius: 3,
-                },
               }}
             >
               <Box sx={markdownStyles}>
@@ -293,8 +308,8 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
             </Paper>
           ) : (
             <Box textAlign="center" py={4}>
-              <CopilotIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-              <Typography variant="body1" color="text.secondary">
+              <CopilotIcon sx={{ fontSize: 48, color: colors.outlineVariant, mb: 1 }} />
+              <Typography sx={{ color: colors.onSurfaceVariant }}>
                 No Copilot prompt generated yet
               </Typography>
             </Box>

@@ -17,6 +17,7 @@ import {
 import { Delete as DeleteIcon, History as HistoryIcon } from '@mui/icons-material';
 import type { AnalyzedStory } from '../types';
 import { analysisApi } from '../services/api';
+import { colors } from '../theme/theme';
 
 interface AnalysisHistoryProps {
   onSelectAnalysis: (result: AnalyzedStory) => void;
@@ -58,7 +59,7 @@ export default function AnalysisHistory({ onSelectAnalysis, refreshTrigger }: An
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" p={3}>
-        <CircularProgress size={24} />
+        <CircularProgress size={24} sx={{ color: colors.primary }} />
       </Box>
     );
   }
@@ -76,8 +77,8 @@ export default function AnalysisHistory({ onSelectAnalysis, refreshTrigger }: An
       <Card>
         <CardContent>
           <Box textAlign="center" py={3}>
-            <HistoryIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-            <Typography variant="body2" color="text.secondary">
+            <HistoryIcon sx={{ fontSize: 48, color: colors.outlineVariant, mb: 1 }} />
+            <Typography sx={{ color: colors.onSurfaceVariant, fontSize: '0.85rem' }}>
               No analysis history yet
             </Typography>
           </Box>
@@ -89,7 +90,16 @@ export default function AnalysisHistory({ onSelectAnalysis, refreshTrigger }: An
   return (
     <Card>
       <CardContent sx={{ pb: 1 }}>
-        <Typography variant="h6" gutterBottom>
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{
+            fontFamily: '"Manrope", sans-serif',
+            fontWeight: 700,
+            fontSize: '1rem',
+            color: colors.primary,
+          }}
+        >
           Analysis History ({analyses.length})
         </Typography>
       </CardContent>
@@ -100,20 +110,29 @@ export default function AnalysisHistory({ onSelectAnalysis, refreshTrigger }: An
             <ListItemText
               primary={
                 <Box display="flex" alignItems="center" gap={1}>
-                  <Chip label={analysis.jiraKey} size="small" color="primary" variant="outlined" />
-                  <Typography variant="body2" noWrap>
+                  <Chip
+                    label={analysis.jiraKey}
+                    size="small"
+                    sx={{
+                      fontWeight: 600,
+                      bgcolor: `${colors.primary}20`,
+                      color: colors.primary,
+                      border: `1px solid ${colors.primary}30`,
+                    }}
+                  />
+                  <Typography variant="body2" noWrap sx={{ color: colors.onSurface }}>
                     {analysis.title}
                   </Typography>
                 </Box>
               }
               secondary={
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{ color: colors.onSurfaceVariant }}>
                   {new Date(analysis.createdAt).toLocaleString()}
                 </Typography>
               }
             />
             <Tooltip title="Delete">
-              <IconButton size="small" onClick={(e) => handleDelete(analysis.id, e)} color="error">
+              <IconButton size="small" onClick={(e) => handleDelete(analysis.id, e)} sx={{ color: colors.error }}>
                 <DeleteIcon fontSize="small" />
               </IconButton>
             </Tooltip>
