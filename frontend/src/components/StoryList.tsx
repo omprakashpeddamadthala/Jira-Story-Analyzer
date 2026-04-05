@@ -14,11 +14,13 @@ import {
   InputAdornment,
   Divider,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   Search as SearchIcon,
   BugReport as BugIcon,
   Assignment as StoryIcon,
   CheckCircle as TaskIcon,
+  Inbox as EmptyIcon,
 } from '@mui/icons-material';
 import type { JiraStory } from '../types';
 import { jiraApi } from '../services/api';
@@ -64,9 +66,9 @@ const getStoryIcon = (type: string) => {
     case 'bug':
       return <BugIcon fontSize="small" sx={{ color: colors.error }} />;
     case 'task':
-      return <TaskIcon fontSize="small" sx={{ color: colors.primary }} />;
+      return <TaskIcon fontSize="small" sx={{ color: colors.success }} />;
     default:
-      return <StoryIcon fontSize="small" sx={{ color: colors.secondary }} />;
+      return <StoryIcon fontSize="small" sx={{ color: colors.primary }} />;
   }
 };
 
@@ -101,55 +103,78 @@ export default function StoryList({ onSelectStory, selectedStoryKey }: StoryList
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight={300}>
-        <CircularProgress sx={{ color: colors.primary }} />
-      </Box>
+      <Card sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Box display="flex" flexDirection="column" alignItems="center" gap={2} py={6}>
+          <CircularProgress size={36} thickness={3} />
+          <Typography sx={{ color: colors.onSurfaceVariant, fontSize: '0.85rem' }}>
+            Loading stories...
+          </Typography>
+        </Box>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ m: 2 }}>
-        {error}
-      </Alert>
+      <Card sx={{ height: '100%' }}>
+        <CardContent>
+          <Alert severity="error">{error}</Alert>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <CardContent sx={{ pb: 1 }}>
-        <Typography
-          variant="h6"
-          gutterBottom
-          sx={{
-            fontFamily: '"Manrope", sans-serif',
-            fontWeight: 700,
-            fontSize: '1rem',
-            color: colors.primary,
-          }}
-        >
-          Assigned Stories ({stories.length})
-        </Typography>
+      <CardContent sx={{ pb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontFamily: '"Manrope", sans-serif',
+              fontWeight: 700,
+              fontSize: '0.95rem',
+              color: colors.onSurface,
+            }}
+          >
+            Assigned Stories
+          </Typography>
+          <Chip
+            label={stories.length}
+            size="small"
+            sx={{
+              fontWeight: 700,
+              fontSize: '0.72rem',
+              bgcolor: alpha(colors.primary, 0.12),
+              color: colors.primary,
+              height: 24,
+              minWidth: 32,
+            }}
+          />
+        </Box>
         <TextField
           fullWidth
           size="small"
-          placeholder="Search stories..."
+          placeholder="Search by key or title..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" sx={{ color: colors.onSurfaceVariant }} />
-              </InputAdornment>
-            ),
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: colors.onSurfaceVariant, fontSize: 18 }} />
+                </InputAdornment>
+              ),
+            },
           }}
         />
       </CardContent>
       <Divider />
-      <List sx={{ overflow: 'auto', flex: 1 }}>
+      <List sx={{ overflow: 'auto', flex: 1, py: 0.5 }}>
         {filteredStories.length === 0 ? (
-          <Box p={3} textAlign="center">
-            <Typography color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+          <Box py={5} textAlign="center">
+            <EmptyIcon sx={{ fontSize: 40, color: alpha(colors.onSurfaceVariant, 0.3), mb: 1 }} />
+            <Typography sx={{ color: colors.onSurfaceVariant, fontSize: '0.85rem' }}>
               {searchTerm ? 'No stories match your search' : 'No assigned stories found'}
             </Typography>
           </Box>
@@ -160,34 +185,58 @@ export default function StoryList({ onSelectStory, selectedStoryKey }: StoryList
               selected={selectedStoryKey === story.key}
               onClick={() => onSelectStory(story)}
               sx={{
+                py: 1.25,
                 borderLeft: selectedStoryKey === story.key
                   ? `3px solid ${colors.primary}`
                   : '3px solid transparent',
-                transition: 'all 0.2s ease',
               }}
             >
               <ListItemText
                 primary={
                   <Box display="flex" alignItems="center" gap={1}>
                     {getStoryIcon(story.storyType)}
-                    <Typography variant="body2" fontWeight={600} sx={{ color: colors.primary }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                        color: selectedStoryKey === story.key ? colors.primary : colors.onSurface,
+                        fontFamily: '"Manrope", sans-serif',
+                        fontSize: '0.82rem',
+                      }}
+                    >
                       {story.key}
                     </Typography>
                   </Box>
                 }
                 secondary={
                   <Box mt={0.5}>
-                    <Typography variant="body2" noWrap sx={{ mb: 0.5, color: colors.onSurface }}>
+                    <Typography
+                      variant="body2"
+                      noWrap
+                      sx={{
+                        mb: 0.75,
+                        color: colors.onSurfaceVariant,
+                        fontSize: '0.82rem',
+                        lineHeight: 1.4,
+                      }}
+                    >
                       {story.summary}
                     </Typography>
                     <Box display="flex" gap={0.5} flexWrap="wrap">
-                      <Chip label={story.status} size="small" color={statusColor(story.status)} variant="outlined" />
+                      <Chip
+                        label={story.status}
+                        size="small"
+                        color={statusColor(story.status)}
+                        variant="outlined"
+                        sx={{ height: 22, fontSize: '0.68rem' }}
+                      />
                       {story.priority && (
                         <Chip
                           label={story.priority}
                           size="small"
                           color={priorityColor(story.priority)}
                           variant="outlined"
+                          sx={{ height: 22, fontSize: '0.68rem' }}
                         />
                       )}
                     </Box>
