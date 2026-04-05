@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ApiResponse, JiraStory, AnalyzeStoryRequest, AnalyzedStory } from '../types';
+import type { ApiResponse, JiraStory, AnalyzeStoryRequest, AnalyzedStory, StreamingCallbacks } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
@@ -8,7 +8,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 120000,
+  timeout: 300000,
 });
 
 apiClient.interceptors.response.use(
@@ -35,6 +35,80 @@ export const analysisApi = {
   analyzeStory: async (request: AnalyzeStoryRequest): Promise<AnalyzedStory> => {
     const response = await apiClient.post<ApiResponse<AnalyzedStory>>('/analysis/analyze', request);
     return response.data.data;
+  },
+
+  analyzeStoryStreaming: (request: AnalyzeStoryRequest, callbacks: StreamingCallbacks): (() => void) => {
+    const abortController = new AbortController();
+
+    fetch(`${API_BASE_URL}/api/v1/analysis/analyze/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+      signal: abortController.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `HTTP ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No response body');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let eventName = '';
+        let eventData = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              eventName = line.slice(6).trim();
+            } else if (line.startsWith('data:')) {
+              eventData = line.slice(5).trim();
+            } else if (line === '' && eventName && eventData) {
+              try {
+                const parsed = JSON.parse(eventData);
+                switch (eventName) {
+                  case 'start':
+                    callbacks.onStart?.(parsed);
+                    break;
+                  case 'section-start':
+                    callbacks.onSectionStart?.(parsed.section, parsed.label);
+                    break;
+                  case 'section-complete':
+                    callbacks.onSectionComplete?.(parsed.section, parsed.content);
+                    break;
+                  case 'complete':
+                    callbacks.onComplete?.(parsed);
+                    break;
+                  case 'error':
+                    callbacks.onError?.(parsed.message);
+                    break;
+                }
+              } catch {
+                // Skip malformed events
+              }
+              eventName = '';
+              eventData = '';
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          callbacks.onError?.(err.message || 'Streaming failed');
+        }
+      });
+
+    return () => abortController.abort();
   },
 
   getAllAnalyzedStories: async (): Promise<AnalyzedStory[]> => {
