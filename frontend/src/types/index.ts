@@ -27,6 +27,7 @@ export interface AnalyzedStory {
   implementationPlan: string;
   apiContracts: string;
   testSuggestions: string;
+  copilotPrompt: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,7 +39,7 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
-export type AnalysisSectionKey = 'simplifiedSummary' | 'implementationPlan' | 'apiContracts' | 'testSuggestions';
+export type AnalysisSectionKey = 'simplifiedSummary' | 'implementationPlan' | 'apiContracts' | 'testSuggestions' | 'copilotPrompt';
 
 export interface StreamingState {
   isStreaming: boolean;

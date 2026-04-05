@@ -70,6 +70,7 @@ public class StoryServiceImpl implements StoryService {
                 .implementationPlan(story.getImplementationPlan())
                 .apiContracts(story.getApiContracts())
                 .testSuggestions(story.getTestSuggestions())
+                .copilotPrompt(story.getCopilotPrompt())
                 .createdAt(story.getCreatedAt())
                 .updatedAt(story.getUpdatedAt())
                 .build();
