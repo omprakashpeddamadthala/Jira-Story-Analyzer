@@ -9,15 +9,18 @@ import {
   Alert,
   CircularProgress,
   Fade,
+  Chip,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   Psychology as AnalyzeIcon,
   Stop as StopIcon,
   Psychology as PsychologyIcon,
+  ChevronRight as ChevronIcon,
 } from '@mui/icons-material';
 import type { JiraStory, AnalyzeStoryRequest, AnalyzedStory, StreamingState, AnalysisSectionKey } from '../types';
 import { analysisApi } from '../services/api';
-import { colors } from '../theme/theme';
+import { colors, gradients } from '../theme/theme';
 
 interface StoryFormProps {
   selectedStory: JiraStory | null;
@@ -145,38 +148,51 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          bgcolor: colors.surfaceContainer,
-          border: `2px dashed ${colors.outlineVariant}40`,
+          border: `2px dashed ${alpha(colors.outlineVariant, 0.25)}`,
+          bgcolor: alpha(colors.surfaceContainer, 0.5),
         }}
       >
         <CardContent>
           <Box textAlign="center" py={4}>
-            <PsychologyIcon
+            <Box
               sx={{
-                fontSize: 72,
-                color: colors.primary,
-                mb: 2,
-                opacity: 0.6,
+                width: 72,
+                height: 72,
+                borderRadius: '20px',
+                bgcolor: alpha(colors.primary, 0.08),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2.5,
                 animation: 'float 3s ease-in-out infinite',
                 '@keyframes float': {
                   '0%, 100%': { transform: 'translateY(0)' },
-                  '50%': { transform: 'translateY(-10px)' },
+                  '50%': { transform: 'translateY(-8px)' },
                 },
               }}
-            />
+            >
+              <PsychologyIcon
+                sx={{
+                  fontSize: 36,
+                  color: colors.primary,
+                }}
+              />
+            </Box>
             <Typography
               variant="h5"
               sx={{
                 fontFamily: '"Manrope", sans-serif',
                 fontWeight: 700,
                 color: colors.onSurface,
-                mb: 1,
+                mb: 0.75,
+                fontSize: '1.2rem',
               }}
             >
               Ready to Analyze
             </Typography>
-            <Typography sx={{ color: colors.onSurfaceVariant, fontSize: '0.9rem' }}>
-              Select a Jira story to generate a Copilot prompt
+            <Typography sx={{ color: colors.onSurfaceVariant, fontSize: '0.85rem', maxWidth: 280, mx: 'auto' }}>
+              Select a Jira story from the list to generate a Copilot prompt
             </Typography>
           </Box>
         </CardContent>
@@ -188,40 +204,40 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
     <Card
       sx={{
         height: '100%',
-        transition: 'all 0.3s ease',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         ...(streaming.isStreaming && {
-          boxShadow: `0 0 24px ${colors.primaryContainer}40`,
-          border: `1px solid ${colors.primary}30`,
+          boxShadow: `0 0 24px ${alpha(colors.primary, 0.15)}`,
+          borderColor: alpha(colors.primary, 0.3),
         }),
       }}
     >
       <CardContent sx={{ p: 3 }}>
-        {/* Breadcrumb-like header */}
-        <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        {/* Breadcrumb header */}
+        <Box sx={{ mb: 2.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
             <Typography
               sx={{
-                fontSize: '0.65rem',
+                fontSize: '0.68rem',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.1em',
+                letterSpacing: '0.08em',
                 color: colors.onSurfaceVariant,
               }}
             >
               Analyzer
             </Typography>
-            <Typography sx={{ fontSize: '0.6rem', color: colors.onSurfaceVariant }}>{'>'}</Typography>
-            <Typography
+            <ChevronIcon sx={{ fontSize: 14, color: alpha(colors.onSurfaceVariant, 0.5) }} />
+            <Chip
+              label={selectedStory.key}
+              size="small"
               sx={{
-                fontSize: '0.65rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
+                height: 22,
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                bgcolor: alpha(colors.primary, 0.12),
                 color: colors.primary,
               }}
-            >
-              {selectedStory.key}
-            </Typography>
+            />
           </Box>
           <Typography
             variant="h5"
@@ -231,7 +247,7 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
               letterSpacing: '-0.02em',
               color: colors.onSurface,
               lineHeight: 1.3,
-              fontSize: '1.3rem',
+              fontSize: '1.2rem',
             }}
           >
             {title || selectedStory.summary}
@@ -308,7 +324,7 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
                 fullWidth
                 onClick={handleStop}
                 startIcon={<StopIcon />}
-                sx={{ py: 1.2 }}
+                sx={{ py: 1.2, borderRadius: '12px' }}
               >
                 Stop Analysis
               </Button>
@@ -319,16 +335,16 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
                 gap={1.5}
                 mt={3}
                 sx={{
-                  animation: 'fadeIn 0.5s ease-out',
+                  animation: 'fadeIn 0.4s ease-out',
                   '@keyframes fadeIn': {
-                    from: { opacity: 0, transform: 'translateY(10px)' },
+                    from: { opacity: 0, transform: 'translateY(8px)' },
                     to: { opacity: 1, transform: 'translateY(0)' },
                   },
                 }}
               >
                 <Box position="relative" display="inline-flex">
                   <CircularProgress
-                    size={56}
+                    size={52}
                     thickness={3}
                     sx={{ color: colors.primary }}
                   />
@@ -342,13 +358,13 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
                     alignItems="center"
                     justifyContent="center"
                   >
-                    <AnalyzeIcon sx={{ fontSize: 24, color: colors.primary }} />
+                    <AnalyzeIcon sx={{ fontSize: 22, color: colors.primary }} />
                   </Box>
                 </Box>
-                <Typography variant="body2" sx={{ color: colors.primary, fontWeight: 600 }}>
-                  Generating Copilot Prompt with {streaming.provider || 'AI'}...
+                <Typography variant="body2" sx={{ color: colors.primary, fontWeight: 600, fontSize: '0.85rem' }}>
+                  Generating prompt with {streaming.provider || 'AI'}...
                 </Typography>
-                <Typography variant="caption" sx={{ color: colors.onSurfaceVariant }}>
+                <Typography variant="caption" sx={{ color: colors.onSurfaceVariant, textAlign: 'center' }}>
                   Analyzing story and building implementation guidance
                 </Typography>
               </Box>
@@ -362,15 +378,15 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
               startIcon={<PsychologyIcon sx={{ transition: 'transform 0.2s' }} />}
               sx={{
                 py: 1.5,
-                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryContainer} 100%)`,
-                color: colors.onPrimary,
+                mt: 0.5,
+                background: gradients.primary,
+                color: '#fff',
                 fontWeight: 700,
                 fontSize: '0.95rem',
-                transition: 'all 0.2s ease',
-                boxShadow: `0 4px 20px ${colors.primary}30`,
+                borderRadius: '12px',
+                boxShadow: `0 4px 20px ${alpha(colors.primary, 0.25)}`,
                 '&:hover': {
-                  transform: 'translateY(-1px)',
-                  boxShadow: `0 8px 28px ${colors.primary}40`,
+                  boxShadow: `0 8px 28px ${alpha(colors.primary, 0.35)}`,
                   '& .MuiSvgIcon-root': { transform: 'rotate(12deg)' },
                 },
                 '&:active': { transform: 'scale(0.98)' },
