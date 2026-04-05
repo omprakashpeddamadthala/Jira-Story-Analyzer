@@ -8,6 +8,7 @@ import com.jiranalyzer.service.StoryService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.UUID;
@@ -40,6 +42,19 @@ public class AnalysisController {
         AnalyzedStoryResponse response = aiAnalysisService.analyzeStory(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Story analyzed successfully"));
+    }
+
+    @PostMapping(value = "/analyze/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter analyzeStoryStreaming(@Valid @RequestBody AnalyzeStoryRequest request) {
+        log.info("POST /api/v1/analysis/analyze/stream - Streaming analysis for story: {}", request.getJiraKey());
+        SseEmitter emitter = new SseEmitter(300000L); // 5 minute timeout
+        emitter.onTimeout(() -> log.warn("SSE connection timed out for story: {}", request.getJiraKey()));
+        emitter.onCompletion(() -> log.debug("SSE connection completed for story: {}", request.getJiraKey()));
+
+        // Run analysis in a separate thread to not block the request thread
+        new Thread(() -> aiAnalysisService.analyzeStoryStreaming(request, emitter)).start();
+
+        return emitter;
     }
 
     @GetMapping("/stories")

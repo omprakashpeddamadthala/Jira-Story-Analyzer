@@ -15,16 +15,18 @@ import StoryList from './components/StoryList';
 import StoryForm from './components/StoryForm';
 import AnalysisResult from './components/AnalysisResult';
 import AnalysisHistory from './components/AnalysisHistory';
-import type { JiraStory, AnalyzedStory } from './types';
+import type { JiraStory, AnalyzedStory, StreamingState } from './types';
 
 function App() {
   const [selectedStory, setSelectedStory] = useState<JiraStory | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalyzedStory | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [streamingState, setStreamingState] = useState<StreamingState | null>(null);
 
   const handleSelectStory = useCallback((story: JiraStory) => {
     setSelectedStory(story);
     setAnalysisResult(null);
+    setStreamingState(null);
   }, []);
 
   const handleAnalysisComplete = useCallback((result: AnalyzedStory) => {
@@ -34,7 +36,14 @@ function App() {
 
   const handleSelectAnalysis = useCallback((result: AnalyzedStory) => {
     setAnalysisResult(result);
+    setStreamingState(null);
   }, []);
+
+  const handleStreamingUpdate = useCallback((state: StreamingState) => {
+    setStreamingState(state);
+  }, []);
+
+  const showResults = analysisResult || (streamingState && (streamingState.isStreaming || streamingState.completedSections.length > 0));
 
   return (
     <ThemeProvider theme={theme}>
@@ -69,6 +78,7 @@ function App() {
               <StoryForm
                 selectedStory={selectedStory}
                 onAnalysisComplete={handleAnalysisComplete}
+                onStreamingUpdate={handleStreamingUpdate}
               />
             </Grid>
 
@@ -81,9 +91,12 @@ function App() {
             </Grid>
 
             {/* Full Width - Analysis Results */}
-            {analysisResult && (
+            {showResults && (
               <Grid size={{ xs: 12 }}>
-                <AnalysisResult result={analysisResult} />
+                <AnalysisResult
+                  result={analysisResult}
+                  streamingState={streamingState ?? undefined}
+                />
               </Grid>
             )}
           </Grid>
