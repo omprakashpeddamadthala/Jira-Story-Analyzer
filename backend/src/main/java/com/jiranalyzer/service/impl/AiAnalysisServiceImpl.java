@@ -5,27 +5,24 @@ import com.jiranalyzer.dto.response.AnalyzedStoryResponse;
 import com.jiranalyzer.entity.AnalyzedStory;
 import com.jiranalyzer.exception.AiAnalysisException;
 import com.jiranalyzer.repository.AnalyzedStoryRepository;
+import com.jiranalyzer.service.AIService;
 import com.jiranalyzer.service.AiAnalysisService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.ChatClient;
-import org.springframework.ai.chat.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
 import java.util.Optional;
 
 @Service
 @Slf4j
 public class AiAnalysisServiceImpl implements AiAnalysisService {
 
-    private final ChatClient chatClient;
+    private final AIService aiService;
     private final AnalyzedStoryRepository analyzedStoryRepository;
 
-    public AiAnalysisServiceImpl(ChatClient chatClient, AnalyzedStoryRepository analyzedStoryRepository) {
-        this.chatClient = chatClient;
+    public AiAnalysisServiceImpl(AIService aiService, AnalyzedStoryRepository analyzedStoryRepository) {
+        this.aiService = aiService;
         this.analyzedStoryRepository = analyzedStoryRepository;
+        log.info("AiAnalysisService initialized with provider: {}", aiService.getProviderName());
     }
 
     @Override
@@ -171,24 +168,21 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
 
     private String callAi(String template, AnalyzeStoryRequest request) {
         try {
-            PromptTemplate promptTemplate = new PromptTemplate(template);
-            Prompt prompt = promptTemplate.create(Map.of(
-                    "title", request.getTitle(),
-                    "description", request.getDescription(),
-                    "acceptanceCriteria", request.getAcceptanceCriteria(),
-                    "definitionOfDone", request.getDefinitionOfDone()
-            ));
+            String prompt = template
+                    .replace("{title}", request.getTitle())
+                    .replace("{description}", request.getDescription())
+                    .replace("{acceptanceCriteria}", request.getAcceptanceCriteria())
+                    .replace("{definitionOfDone}", request.getDefinitionOfDone());
 
-            log.debug("Calling AI for story: {} with prompt length: {}", request.getJiraKey(), prompt.getContents().length());
-            ChatResponse response = chatClient.call(prompt);
-            String content = response.getResult().getOutput().getContent();
+            log.debug("Calling AI ({}) for story: {} with prompt length: {}",
+                    aiService.getProviderName(), request.getJiraKey(), prompt.length());
+            String content = aiService.generateResponse(prompt);
             log.debug("AI response received for story: {}, length: {}", request.getJiraKey(), content.length());
             return content;
+        } catch (AiAnalysisException ex) {
+            throw ex;
         } catch (Exception ex) {
             log.error("AI call failed for story {}: {}", request.getJiraKey(), ex.getMessage());
-            if (ex.getMessage().contains("authentication") || ex.getMessage().contains("401") || ex.getMessage().contains("403")) {
-                throw new AiAnalysisException("OpenAI API authentication failed. Please check your OPENAI_API_KEY configuration.", ex);
-            }
             throw new AiAnalysisException("AI analysis failed: " + ex.getMessage(), ex);
         }
     }
