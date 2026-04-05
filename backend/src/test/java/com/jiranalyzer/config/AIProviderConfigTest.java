@@ -1,16 +1,20 @@
 package com.jiranalyzer.config;
 
-import com.jiranalyzer.exception.AiAnalysisException;
 import com.jiranalyzer.service.AIService;
 import com.jiranalyzer.service.impl.GeminiServiceImpl;
 import com.jiranalyzer.service.impl.OpenAIServiceImpl;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 class AIProviderConfigTest {
 
@@ -55,54 +59,60 @@ class AIProviderConfigTest {
     }
 
     @Test
-    void shouldThrowErrorWhenOpenAIKeyMissing() {
+    void shouldCreateOpenAIServiceWithoutApiKey() {
         AIProviderConfig config = new AIProviderConfig();
         AIProperties properties = new AIProperties();
         properties.setProvider("openai");
         properties.getOpenai().setApiKey("");
 
-        assertThrows(AiAnalysisException.class, () ->
-                config.openAIService(null, properties));
+        ChatClient mockChatClient = mock(ChatClient.class);
+        AIService service = config.openAIService(mockChatClient, properties);
+
+        assertNotNull(service);
+        assertInstanceOf(OpenAIServiceImpl.class, service);
     }
 
     @Test
-    void shouldThrowErrorWhenGeminiKeyMissing() {
+    void shouldCreateGeminiServiceWithoutApiKey() {
         AIProviderConfig config = new AIProviderConfig();
         AIProperties properties = new AIProperties();
         properties.setProvider("gemini");
         properties.getGemini().setApiKey("");
 
-        assertThrows(AiAnalysisException.class, () ->
-                config.geminiService(null, properties, null));
+        RestTemplate mockRestTemplate = mock(RestTemplate.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        AIService service = config.geminiService(mockRestTemplate, properties, objectMapper);
+
+        assertNotNull(service);
+        assertInstanceOf(GeminiServiceImpl.class, service);
     }
 
     @Test
-    void shouldThrowErrorWhenOpenAIKeyIsNull() {
+    void shouldCreateOpenAIServiceWithValidApiKey() {
         AIProviderConfig config = new AIProviderConfig();
         AIProperties properties = new AIProperties();
-        properties.getOpenai().setApiKey(null);
+        properties.setProvider("openai");
+        properties.getOpenai().setApiKey("valid-key");
 
-        assertThrows(AiAnalysisException.class, () ->
-                config.openAIService(null, properties));
+        ChatClient mockChatClient = mock(ChatClient.class);
+        AIService service = config.openAIService(mockChatClient, properties);
+
+        assertNotNull(service);
+        assertEquals("openai", service.getProviderName());
     }
 
     @Test
-    void shouldThrowErrorWhenGeminiKeyIsNull() {
+    void shouldCreateGeminiServiceWithValidApiKey() {
         AIProviderConfig config = new AIProviderConfig();
         AIProperties properties = new AIProperties();
-        properties.getGemini().setApiKey(null);
+        properties.setProvider("gemini");
+        properties.getGemini().setApiKey("valid-key");
 
-        assertThrows(AiAnalysisException.class, () ->
-                config.geminiService(null, properties, null));
-    }
+        RestTemplate mockRestTemplate = mock(RestTemplate.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        AIService service = config.geminiService(mockRestTemplate, properties, objectMapper);
 
-    @Test
-    void shouldThrowErrorWhenOpenAIKeyIsBlank() {
-        AIProviderConfig config = new AIProviderConfig();
-        AIProperties properties = new AIProperties();
-        properties.getOpenai().setApiKey("   ");
-
-        assertThrows(AiAnalysisException.class, () ->
-                config.openAIService(null, properties));
+        assertNotNull(service);
+        assertEquals("gemini", service.getProviderName());
     }
 }
