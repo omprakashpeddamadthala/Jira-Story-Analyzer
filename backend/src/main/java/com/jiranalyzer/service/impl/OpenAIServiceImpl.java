@@ -34,11 +34,23 @@ public class OpenAIServiceImpl implements AIService {
             }
             log.debug("OpenAI response received, length: {}", content.length());
             return content;
+        } catch (AiAnalysisException ex) {
+            throw ex;
         } catch (Exception ex) {
             log.error("OpenAI call failed: {}", ex.getMessage());
-            if (ex.getMessage() != null && (ex.getMessage().contains("authentication")
-                    || ex.getMessage().contains("401")
-                    || ex.getMessage().contains("403"))) {
+            String message = ex.getMessage() != null ? ex.getMessage() : "";
+            if (message.contains("content type [text/plain]")
+                    || message.contains("content type [text/html]")) {
+                throw new AiAnalysisException(
+                        "OpenAI API returned an unexpected error response. "
+                                + "This typically indicates an invalid API key, expired key, or account billing issue. "
+                                + "Please verify your OPENAI_API_KEY is correct and your OpenAI account is active at "
+                                + "https://platform.openai.com/api-keys",
+                        ex);
+            }
+            if (message.contains("authentication")
+                    || message.contains("401")
+                    || message.contains("403")) {
                 throw new AiAnalysisException(
                         "OpenAI API authentication failed. Please check your API key configuration.", ex);
             }

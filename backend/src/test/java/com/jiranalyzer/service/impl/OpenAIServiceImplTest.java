@@ -109,4 +109,31 @@ class OpenAIServiceImplTest {
 
         assertTrue(exception.getMessage().contains("API key is not configured"));
     }
+
+    @Test
+    void shouldProvideHelpfulErrorOnTextPlainResponse() {
+        when(chatClient.call(any(Prompt.class)))
+                .thenThrow(new RuntimeException(
+                        "Error while extracting response for type "
+                                + "[org.springframework.ai.openai.api.OpenAiApi$ChatCompletion] "
+                                + "and content type [text/plain]"));
+
+        AiAnalysisException exception = assertThrows(AiAnalysisException.class,
+                () -> openAIService.generateResponse("Test prompt"));
+
+        assertTrue(exception.getMessage().contains("invalid API key"));
+        assertTrue(exception.getMessage().contains("platform.openai.com"));
+    }
+
+    @Test
+    void shouldProvideHelpfulErrorOnTextHtmlResponse() {
+        when(chatClient.call(any(Prompt.class)))
+                .thenThrow(new RuntimeException(
+                        "Error while extracting response for type and content type [text/html]"));
+
+        AiAnalysisException exception = assertThrows(AiAnalysisException.class,
+                () -> openAIService.generateResponse("Test prompt"));
+
+        assertTrue(exception.getMessage().contains("invalid API key"));
+    }
 }
