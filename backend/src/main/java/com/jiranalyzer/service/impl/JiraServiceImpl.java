@@ -13,6 +13,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -20,7 +22,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -39,14 +43,45 @@ public class JiraServiceImpl implements JiraService {
     @Override
     public List<JiraStoryResponse> fetchAssignedStories() {
         log.info("Fetching assigned Jira stories");
-        String jql = "assignee=currentUser() AND status != Done ORDER BY updated DESC";
-        String url = jiraConfig.getBaseUrl() + "/rest/api/3/search/jql?jql=" + encodeJql(jql)
-                + "&fields=summary,description,status,priority,assignee,issuetype&maxResults=50";
-
+        String baseUrl = normalizeBaseUrl(jiraConfig.getBaseUrl());
+        log.debug("Jira base URL: {}", baseUrl);
+        log.debug("Jira email: {}", jiraConfig.getEmail());
+        log.debug("API token length: {}", jiraConfig.getApiToken() != null ? jiraConfig.getApiToken().length() : 0);
+        
+        // First get current user info to get accountId
+        String myselfUrl = baseUrl + "/rest/api/3/myself";
+        log.debug("Myself URL: {}", myselfUrl);
+        String accountId;
         try {
             HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders());
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            ResponseEntity<String> response = restTemplate.exchange(myselfUrl, HttpMethod.GET, entity, String.class);
+            JsonNode myself = objectMapper.readTree(response.getBody());
+            accountId = myself.get("accountId").asText();
+            log.info("Current user accountId: {}", accountId);
+        } catch (Exception ex) {
+            log.error("Failed to get current user info: {}", ex.getMessage());
+            throw new JiraApiException("Failed to get current user info", ex);
+        }
+        
+        // Use accountId in JQL
+        String jql = "assignee = '" + accountId + "' AND project = 'SCRUM' AND statusCategory != 3";
+        log.info("JQL query: {}", jql);
+        
+        String url = jiraConfig.getBaseUrl() + "/rest/api/3/search/jql";
 
+        try {
+            HttpHeaders headers = createAuthHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            
+            Map<String, Object> body = new HashMap<>();
+            body.put("jql", jql);
+            body.put("fields", List.of("summary", "description", "status", "priority", "assignee", "issuetype"));
+            body.put("maxResults", 50);
+            
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
+            
+            log.info("Jira API raw response: {}", response.getBody());
             return parseJiraSearchResponse(response.getBody());
         } catch (RestClientException ex) {
             log.error("Failed to fetch Jira stories: {}", ex.getMessage(), ex);
@@ -57,7 +92,8 @@ public class JiraServiceImpl implements JiraService {
     @Override
     public JiraStoryResponse fetchStoryByKey(String jiraKey) {
         log.info("Fetching Jira story by key: {}", jiraKey);
-        String url = jiraConfig.getBaseUrl() + "/rest/api/3/issue/" + jiraKey
+        String baseUrl = normalizeBaseUrl(jiraConfig.getBaseUrl());
+        String url = baseUrl + "/rest/api/3/issue/" + jiraKey
                 + "?fields=summary,description,status,priority,assignee,issuetype";
 
         try {
@@ -80,12 +116,8 @@ public class JiraServiceImpl implements JiraService {
         String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
         headers.set("Authorization", "Basic " + encodedAuth);
         headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        log.debug("Authorization header length: {}, email used: {}", encodedAuth.length(), jiraConfig.getEmail());
         return headers;
-    }
-
-    private String encodeJql(String jql) {
-        return java.net.URLEncoder.encode(jql, StandardCharsets.UTF_8);
     }
 
     private List<JiraStoryResponse> parseJiraSearchResponse(String responseBody) {
@@ -93,6 +125,8 @@ public class JiraServiceImpl implements JiraService {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
             JsonNode issues = root.get("issues");
+            int total = root.has("total") ? root.get("total").asInt() : 0;
+            log.info("Jira API returned {} stories", total);
             if (issues != null && issues.isArray()) {
                 for (JsonNode issue : issues) {
                     stories.add(parseSingleIssue(issue));
@@ -161,5 +195,13 @@ public class JiraServiceImpl implements JiraService {
             return getTextValue(node.get(parent), child);
         }
         return "";
+    }
+
+    private String normalizeBaseUrl(String baseUrl) {
+        if (baseUrl == null) {
+            return "";
+        }
+        // Remove trailing slash to avoid double slashes when appending paths
+        return baseUrl.replaceAll("/+$", "");
     }
 }

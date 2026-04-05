@@ -170,16 +170,27 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
     }
 
     private String callAi(String template, AnalyzeStoryRequest request) {
-        PromptTemplate promptTemplate = new PromptTemplate(template);
-        Prompt prompt = promptTemplate.create(Map.of(
-                "title", request.getTitle(),
-                "description", request.getDescription(),
-                "acceptanceCriteria", request.getAcceptanceCriteria(),
-                "definitionOfDone", request.getDefinitionOfDone()
-        ));
+        try {
+            PromptTemplate promptTemplate = new PromptTemplate(template);
+            Prompt prompt = promptTemplate.create(Map.of(
+                    "title", request.getTitle(),
+                    "description", request.getDescription(),
+                    "acceptanceCriteria", request.getAcceptanceCriteria(),
+                    "definitionOfDone", request.getDefinitionOfDone()
+            ));
 
-        ChatResponse response = chatClient.call(prompt);
-        return response.getResult().getOutput().getContent();
+            log.debug("Calling AI for story: {} with prompt length: {}", request.getJiraKey(), prompt.getContents().length());
+            ChatResponse response = chatClient.call(prompt);
+            String content = response.getResult().getOutput().getContent();
+            log.debug("AI response received for story: {}, length: {}", request.getJiraKey(), content.length());
+            return content;
+        } catch (Exception ex) {
+            log.error("AI call failed for story {}: {}", request.getJiraKey(), ex.getMessage());
+            if (ex.getMessage().contains("authentication") || ex.getMessage().contains("401") || ex.getMessage().contains("403")) {
+                throw new AiAnalysisException("OpenAI API authentication failed. Please check your OPENAI_API_KEY configuration.", ex);
+            }
+            throw new AiAnalysisException("AI analysis failed: " + ex.getMessage(), ex);
+        }
     }
 
     private AnalyzedStoryResponse mapToResponse(AnalyzedStory story) {
