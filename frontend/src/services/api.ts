@@ -57,6 +57,8 @@ export const analysisApi = {
 
         const decoder = new TextDecoder();
         let buffer = '';
+        let eventName = '';
+        let eventData = '';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -65,9 +67,6 @@ export const analysisApi = {
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
-
-          let eventName = '';
-          let eventData = '';
 
           for (const line of lines) {
             if (line.startsWith('event:')) {

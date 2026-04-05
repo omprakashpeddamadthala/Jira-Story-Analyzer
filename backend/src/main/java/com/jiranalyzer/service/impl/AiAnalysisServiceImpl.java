@@ -13,8 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -74,13 +72,6 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
     public void analyzeStoryStreaming(AnalyzeStoryRequest request, SseEmitter emitter) {
         log.info("Streaming analysis for story: {} - {}", request.getJiraKey(), request.getTitle());
 
-        // Define sections in order
-        Map<String, String> sectionGenerators = new LinkedHashMap<>();
-        sectionGenerators.put("simplifiedSummary", "summary");
-        sectionGenerators.put("implementationPlan", "plan");
-        sectionGenerators.put("apiContracts", "api");
-        sectionGenerators.put("testSuggestions", "tests");
-
         String simplifiedSummary = null;
         String implementationPlan = null;
         String apiContracts = null;
@@ -88,7 +79,7 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
 
         try {
             // Send start event
-            sendSseEvent(emitter, "start", "{\"jiraKey\":\"" + request.getJiraKey() + "\",\"provider\":\"" + aiService.getProviderName() + "\"}");
+            sendSseEvent(emitter, "start", "{\"jiraKey\":" + escapeJson(request.getJiraKey()) + ",\"provider\":" + escapeJson(aiService.getProviderName()) + "}");
 
             // Generate and stream each section
             sendSseEvent(emitter, "section-start", "{\"section\":\"simplifiedSummary\",\"label\":\"Simplified Summary\"}");
@@ -112,10 +103,7 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
             AnalyzedStoryResponse response = mapToResponse(savedStory);
 
             // Send final complete event with full response
-            String responseJson = String.format(
-                    "{\"id\":\"%s\",\"jiraKey\":\"%s\",\"createdAt\":\"%s\",\"updatedAt\":\"%s\"}",
-                    response.getId(), response.getJiraKey(), response.getCreatedAt(), response.getUpdatedAt()
-            );
+            String responseJson = "{\"id\":" + escapeJson(String.valueOf(response.getId())) + ",\"jiraKey\":" + escapeJson(response.getJiraKey()) + ",\"createdAt\":" + escapeJson(String.valueOf(response.getCreatedAt())) + ",\"updatedAt\":" + escapeJson(String.valueOf(response.getUpdatedAt())) + "}";
             sendSseEvent(emitter, "complete", responseJson);
             emitter.complete();
             log.info("Streaming analysis completed for story: {}", request.getJiraKey());
