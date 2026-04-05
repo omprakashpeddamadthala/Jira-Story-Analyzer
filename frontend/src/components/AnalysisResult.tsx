@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Tab,
@@ -20,6 +21,7 @@ import {
   BugReport as TestIcon,
   ContentCopy as CopyIcon,
   Check as CheckIcon,
+  SmartToy as CopilotIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import type { AnalyzedStory, StreamingState, AnalysisSectionKey } from '../types';
@@ -35,7 +37,7 @@ interface TabPanelProps {
   value: number;
 }
 
-const SECTION_KEYS: AnalysisSectionKey[] = ['simplifiedSummary', 'implementationPlan', 'apiContracts', 'testSuggestions'];
+const SECTION_KEYS: AnalysisSectionKey[] = ['simplifiedSummary', 'implementationPlan', 'apiContracts', 'testSuggestions', 'copilotPrompt'];
 
 function TabPanel({ children, value, index }: TabPanelProps) {
   return (
@@ -149,6 +151,106 @@ function MarkdownContent({ content }: { content: string }) {
               from: { opacity: 0, transform: 'translateY(10px)' },
               to: { opacity: 1, transform: 'translateY(0)' },
             },
+          }}
+        >
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </Box>
+      </Paper>
+    </Fade>
+  );
+}
+
+function CopilotPromptContent({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API not available
+    }
+  };
+
+  return (
+    <Fade in timeout={600}>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 3,
+          backgroundColor: '#FAFBFC',
+          border: '2px solid',
+          borderColor: 'secondary.light',
+          borderRadius: 2,
+        }}
+      >
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="subtitle1" fontWeight={700} color="secondary.main">
+            GitHub Copilot Implementation Prompt
+          </Typography>
+          <Button
+            variant="contained"
+            color="secondary"
+            size="small"
+            startIcon={copied ? <CheckIcon /> : <CopyIcon />}
+            onClick={handleCopyAll}
+            sx={{ minWidth: 160 }}
+          >
+            {copied ? 'Copied!' : 'Copy Full Prompt'}
+          </Button>
+        </Box>
+        <Box
+          sx={{
+            maxHeight: '75vh',
+            overflow: 'auto',
+            '& h1': { fontSize: '1.5rem', fontWeight: 700, mt: 2, mb: 1.5 },
+            '& h2': { fontSize: '1.25rem', fontWeight: 600, mt: 2, mb: 1 },
+            '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 1.5, mb: 0.5 },
+            '& p': { fontSize: '0.95rem', lineHeight: 1.8, mb: 1.5 },
+            '& ul, & ol': { pl: 3, mb: 1.5 },
+            '& li': { fontSize: '0.95rem', lineHeight: 1.8, mb: 0.5 },
+            '& code': {
+              backgroundColor: 'rgba(0,0,0,0.06)',
+              borderRadius: '4px',
+              px: 0.8,
+              py: 0.2,
+              fontSize: '0.85rem',
+              fontFamily: '"Fira Code", "Consolas", monospace',
+            },
+            '& pre': {
+              backgroundColor: '#1e1e1e',
+              color: '#d4d4d4',
+              borderRadius: '8px',
+              p: 2,
+              overflow: 'auto',
+              mb: 2,
+              '& code': {
+                backgroundColor: 'transparent',
+                color: 'inherit',
+                p: 0,
+              },
+            },
+            '& table': {
+              width: '100%',
+              borderCollapse: 'collapse',
+              mb: 2,
+              '& th, & td': {
+                border: '1px solid #ddd',
+                p: 1,
+                fontSize: '0.9rem',
+              },
+              '& th': { backgroundColor: '#f5f5f5', fontWeight: 600 },
+            },
+            '& blockquote': {
+              borderLeft: '3px solid',
+              borderColor: 'secondary.main',
+              pl: 2,
+              ml: 0,
+              color: 'text.secondary',
+              fontStyle: 'italic',
+            },
+            '& hr': { my: 2, borderColor: 'divider' },
           }}
         >
           <ReactMarkdown>{content}</ReactMarkdown>
@@ -281,6 +383,16 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
             iconPosition="start"
             disabled={!isSectionAvailable('testSuggestions')}
           />
+          <Tab
+            icon={<CopilotIcon />}
+            label="Copilot Prompt"
+            iconPosition="start"
+            disabled={!isSectionAvailable('copilotPrompt')}
+            sx={{
+              fontWeight: isSectionAvailable('copilotPrompt') ? 700 : 400,
+              color: isSectionAvailable('copilotPrompt') ? 'secondary.main' : undefined,
+            }}
+          />
         </Tabs>
 
         {SECTION_KEYS.map((key, idx) => (
@@ -288,7 +400,11 @@ export default function AnalysisResult({ result, streamingState }: AnalysisResul
             {isSectionLoading(key) ? (
               <StreamingSkeleton />
             ) : getContent(key) ? (
-              <MarkdownContent content={getContent(key) as string} />
+              key === 'copilotPrompt' ? (
+                <CopilotPromptContent content={getContent(key) as string} />
+              ) : (
+                <MarkdownContent content={getContent(key) as string} />
+              )
             ) : null}
           </TabPanel>
         ))}

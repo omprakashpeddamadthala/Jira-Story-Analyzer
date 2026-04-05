@@ -29,9 +29,10 @@ const SECTION_LABELS: Record<AnalysisSectionKey, string> = {
   implementationPlan: 'Implementation Plan',
   apiContracts: 'API Contracts',
   testSuggestions: 'Test Cases',
+  copilotPrompt: 'Copilot Prompt',
 };
 
-const ALL_SECTIONS: AnalysisSectionKey[] = ['simplifiedSummary', 'implementationPlan', 'apiContracts', 'testSuggestions'];
+const ALL_SECTIONS: AnalysisSectionKey[] = ['simplifiedSummary', 'implementationPlan', 'apiContracts', 'testSuggestions', 'copilotPrompt'];
 
 const initialStreamingState: StreamingState = {
   isStreaming: false,
@@ -134,6 +135,7 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
           implementationPlan: '',
           apiContracts: '',
           testSuggestions: '',
+          copilotPrompt: '',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         });

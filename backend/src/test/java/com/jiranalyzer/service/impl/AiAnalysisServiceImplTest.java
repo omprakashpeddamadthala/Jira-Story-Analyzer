@@ -62,6 +62,7 @@ class AiAnalysisServiceImplTest {
                 .implementationPlan("AI generated content")
                 .apiContracts("AI generated content")
                 .testSuggestions("AI generated content")
+                .copilotPrompt("AI generated content")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -73,7 +74,7 @@ class AiAnalysisServiceImplTest {
         assertNotNull(response);
         assertEquals("TEST-123", response.getJiraKey());
         assertEquals("Test Story", response.getTitle());
-        verify(aiService, times(4)).generateResponse(anyString());
+        verify(aiService, times(5)).generateResponse(anyString());
         verify(analyzedStoryRepository).save(any(AnalyzedStory.class));
     }
 
@@ -143,6 +144,7 @@ class AiAnalysisServiceImplTest {
                 .implementationPlan("Generated content")
                 .apiContracts("Generated content")
                 .testSuggestions("Generated content")
+                .copilotPrompt("Generated content")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -151,7 +153,7 @@ class AiAnalysisServiceImplTest {
 
         aiAnalysisService.analyzeStory(request);
 
-        // Verify AI is called 4 times: summary, implementation plan, API contracts, test suggestions
-        verify(aiService, times(4)).generateResponse(anyString());
+        // Verify AI is called 5 times: summary, implementation plan, API contracts, test suggestions, copilot prompt
+        verify(aiService, times(5)).generateResponse(anyString());
     }
 }

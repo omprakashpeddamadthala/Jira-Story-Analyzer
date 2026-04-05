@@ -58,6 +58,9 @@ public class AnalyzedStory {
     @Column(name = "test_suggestions", columnDefinition = "TEXT")
     private String testSuggestions;
 
+    @Column(name = "copilot_prompt", columnDefinition = "TEXT")
+    private String copilotPrompt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
