@@ -7,13 +7,13 @@ import {
   TextField,
   Typography,
   Alert,
-  LinearProgress,
-  Chip,
-  Stack,
+  CircularProgress,
+  Fade,
 } from '@mui/material';
 import {
   AutoAwesome as AnalyzeIcon,
   Stop as StopIcon,
+  RocketLaunch as RocketIcon,
 } from '@mui/icons-material';
 import type { JiraStory, AnalyzeStoryRequest, AnalyzedStory, StreamingState, AnalysisSectionKey } from '../types';
 import { analysisApi } from '../services/api';
@@ -23,16 +23,6 @@ interface StoryFormProps {
   onAnalysisComplete: (result: AnalyzedStory) => void;
   onStreamingUpdate: (state: StreamingState) => void;
 }
-
-const SECTION_LABELS: Record<AnalysisSectionKey, string> = {
-  simplifiedSummary: 'Summary',
-  implementationPlan: 'Implementation Plan',
-  apiContracts: 'API Contracts',
-  testSuggestions: 'Test Cases',
-  copilotPrompt: 'Copilot Prompt',
-};
-
-const ALL_SECTIONS: AnalysisSectionKey[] = ['simplifiedSummary', 'implementationPlan', 'apiContracts', 'testSuggestions', 'copilotPrompt'];
 
 const initialStreamingState: StreamingState = {
   isStreaming: false,
@@ -131,10 +121,6 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
           description: request.description,
           acceptanceCriteria: request.acceptanceCriteria,
           definitionOfDone: request.definitionOfDone,
-          simplifiedSummary: '',
-          implementationPlan: '',
-          apiContracts: '',
-          testSuggestions: '',
           copilotPrompt: '',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
@@ -150,23 +136,38 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
     abortRef.current = abort;
   };
 
-  const progress = streaming.isStreaming
-    ? (streaming.completedSections.length / ALL_SECTIONS.length) * 100
-    : streaming.completedSections.length === ALL_SECTIONS.length
-    ? 100
-    : 0;
-
   if (!selectedStory) {
     return (
-      <Card sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Card
+        sx={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+          border: '2px dashed',
+          borderColor: 'divider',
+        }}
+      >
         <CardContent>
           <Box textAlign="center" py={4}>
-            <AnalyzeIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary">
-              Select a Jira story to get started
+            <RocketIcon
+              sx={{
+                fontSize: 72,
+                color: 'primary.light',
+                mb: 2,
+                animation: 'float 3s ease-in-out infinite',
+                '@keyframes float': {
+                  '0%, 100%': { transform: 'translateY(0)' },
+                  '50%': { transform: 'translateY(-10px)' },
+                },
+              }}
+            />
+            <Typography variant="h5" fontWeight={700} gutterBottom>
+              Ready to Analyze
             </Typography>
-            <Typography variant="body2" color="text.disabled">
-              Choose a story from the list to analyze it with AI
+            <Typography variant="body1" color="text.secondary">
+              Select a Jira story from the left panel to generate a Copilot prompt
             </Typography>
           </Box>
         </CardContent>
@@ -175,16 +176,31 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
   }
 
   return (
-    <Card sx={{ height: '100%' }}>
+    <Card
+      sx={{
+        height: '100%',
+        transition: 'all 0.3s ease',
+        ...(streaming.isStreaming && {
+          boxShadow: '0 0 20px rgba(101, 84, 192, 0.2)',
+          border: '1px solid',
+          borderColor: 'secondary.light',
+        }),
+      }}
+    >
       <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Analyze Story: {selectedStory.key}
-        </Typography>
+        <Box display="flex" alignItems="center" gap={1} mb={2}>
+          <AnalyzeIcon color="primary" />
+          <Typography variant="h6" fontWeight={700}>
+            Analyze: {selectedStory.key}
+          </Typography>
+        </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
+          <Fade in>
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          </Fade>
         )}
 
         <Box display="flex" flexDirection="column" gap={2}>
@@ -197,6 +213,7 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
             variant="outlined"
             size="small"
             disabled={streaming.isStreaming}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           />
 
           <TextField
@@ -206,10 +223,11 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
             fullWidth
             required
             multiline
-            rows={4}
+            rows={3}
             variant="outlined"
             size="small"
             disabled={streaming.isStreaming}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           />
 
           <TextField
@@ -219,11 +237,12 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
             fullWidth
             required
             multiline
-            rows={4}
+            rows={3}
             variant="outlined"
             size="small"
             placeholder="Enter the acceptance criteria for this story..."
             disabled={streaming.isStreaming}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           />
 
           <TextField
@@ -233,80 +252,98 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
             fullWidth
             required
             multiline
-            rows={3}
+            rows={2}
             variant="outlined"
             size="small"
             placeholder="Enter the definition of done for this story..."
             disabled={streaming.isStreaming}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           />
 
           {streaming.isStreaming ? (
-            <Button
-              variant="outlined"
-              color="error"
-              size="large"
-              onClick={handleStop}
-              startIcon={<StopIcon />}
-              sx={{ mt: 1 }}
-            >
-              Stop Analysis
-            </Button>
+            <Box>
+              <Button
+                variant="outlined"
+                color="error"
+                size="large"
+                fullWidth
+                onClick={handleStop}
+                startIcon={<StopIcon />}
+                sx={{ borderRadius: 2, py: 1.2 }}
+              >
+                Stop Analysis
+              </Button>
+              <Box
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                gap={1.5}
+                mt={3}
+                sx={{
+                  animation: 'fadeIn 0.5s ease-out',
+                  '@keyframes fadeIn': {
+                    from: { opacity: 0, transform: 'translateY(10px)' },
+                    to: { opacity: 1, transform: 'translateY(0)' },
+                  },
+                }}
+              >
+                <Box position="relative" display="inline-flex">
+                  <CircularProgress
+                    size={56}
+                    thickness={3}
+                    sx={{
+                      color: 'secondary.main',
+                      animation: 'spin 1.5s linear infinite',
+                      '@keyframes spin': {
+                        from: { transform: 'rotate(0deg)' },
+                        to: { transform: 'rotate(360deg)' },
+                      },
+                    }}
+                  />
+                  <Box
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    bottom={0}
+                    right={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    <AnalyzeIcon sx={{ fontSize: 24, color: 'secondary.main' }} />
+                  </Box>
+                </Box>
+                <Typography variant="body2" color="secondary.main" fontWeight={600}>
+                  Generating Copilot Prompt with {streaming.provider || 'AI'}...
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Analyzing story and building implementation guidance
+                </Typography>
+              </Box>
+            </Box>
           ) : (
             <Button
               variant="contained"
-              color="primary"
               size="large"
+              fullWidth
               onClick={handleAnalyze}
-              startIcon={<AnalyzeIcon />}
-              sx={{ mt: 1 }}
+              startIcon={<RocketIcon />}
+              sx={{
+                borderRadius: 2,
+                py: 1.2,
+                background: 'linear-gradient(135deg, #6554C0 0%, #0052CC 100%)',
+                fontWeight: 700,
+                fontSize: '1rem',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #403294 0%, #0747A6 100%)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 4px 12px rgba(101, 84, 192, 0.4)',
+                },
+              }}
             >
-              Analyze Story
+              Generate Copilot Prompt
             </Button>
-          )}
-
-          {(streaming.isStreaming || streaming.completedSections.length > 0) && (
-            <Box sx={{ mt: 1 }}>
-              <Box display="flex" justifyContent="space-between" mb={0.5}>
-                <Typography variant="caption" color="text.secondary">
-                  {streaming.isStreaming
-                    ? `Analyzing with ${streaming.provider || 'AI'}...`
-                    : 'Analysis complete'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {streaming.completedSections.length}/{ALL_SECTIONS.length} sections
-                </Typography>
-              </Box>
-              <LinearProgress
-                variant={streaming.activeSection ? 'indeterminate' : 'determinate'}
-                value={progress}
-                sx={{ height: 6, borderRadius: 3, mb: 1 }}
-              />
-              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                {ALL_SECTIONS.map((section) => {
-                  const isComplete = streaming.completedSections.includes(section);
-                  const isActive = streaming.activeSection === section;
-                  return (
-                    <Chip
-                      key={section}
-                      label={SECTION_LABELS[section]}
-                      size="small"
-                      color={isComplete ? 'success' : isActive ? 'primary' : 'default'}
-                      variant={isComplete || isActive ? 'filled' : 'outlined'}
-                      sx={{
-                        fontSize: '0.7rem',
-                        ...(isActive && {
-                          animation: 'pulse 1.5s ease-in-out infinite',
-                          '@keyframes pulse': {
-                            '0%, 100%': { opacity: 1 },
-                            '50%': { opacity: 0.6 },
-                          },
-                        }),
-                      }}
-                    />
-                  );
-                })}
-              </Stack>
-            </Box>
           )}
         </Box>
       </CardContent>
