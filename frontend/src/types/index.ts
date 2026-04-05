@@ -37,3 +37,22 @@ export interface ApiResponse<T> {
   data: T;
   timestamp: string;
 }
+
+export type AnalysisSectionKey = 'simplifiedSummary' | 'implementationPlan' | 'apiContracts' | 'testSuggestions';
+
+export interface StreamingState {
+  isStreaming: boolean;
+  activeSection: AnalysisSectionKey | null;
+  completedSections: AnalysisSectionKey[];
+  sections: Partial<Record<AnalysisSectionKey, string>>;
+  error: string | null;
+  provider: string | null;
+}
+
+export interface StreamingCallbacks {
+  onStart?: (data: { jiraKey: string; provider: string }) => void;
+  onSectionStart?: (section: string, label: string) => void;
+  onSectionComplete?: (section: string, content: string) => void;
+  onComplete?: (data: { id: string; jiraKey: string; createdAt: string; updatedAt: string }) => void;
+  onError?: (message: string) => void;
+}
