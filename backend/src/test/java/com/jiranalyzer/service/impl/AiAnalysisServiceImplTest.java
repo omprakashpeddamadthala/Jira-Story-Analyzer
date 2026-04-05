@@ -58,10 +58,6 @@ class AiAnalysisServiceImplTest {
                 .description("Test description")
                 .acceptanceCriteria("Test criteria")
                 .definitionOfDone("Test done")
-                .simplifiedSummary("AI generated content")
-                .implementationPlan("AI generated content")
-                .apiContracts("AI generated content")
-                .testSuggestions("AI generated content")
                 .copilotPrompt("AI generated content")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -74,7 +70,7 @@ class AiAnalysisServiceImplTest {
         assertNotNull(response);
         assertEquals("TEST-123", response.getJiraKey());
         assertEquals("Test Story", response.getTitle());
-        verify(aiService, times(5)).generateResponse(anyString());
+        verify(aiService, times(1)).generateResponse(anyString());
         verify(analyzedStoryRepository).save(any(AnalyzedStory.class));
     }
 
@@ -123,7 +119,7 @@ class AiAnalysisServiceImplTest {
     }
 
     @Test
-    void shouldCallAiServiceFourTimesForCompleteAnalysis() {
+    void shouldCallAiServiceOnceForCopilotPrompt() {
         AnalyzeStoryRequest request = AnalyzeStoryRequest.builder()
                 .jiraKey("TEST-789")
                 .title("Test Story")
@@ -140,10 +136,6 @@ class AiAnalysisServiceImplTest {
                 .jiraKey("TEST-789")
                 .title("Test Story")
                 .description("Description")
-                .simplifiedSummary("Generated content")
-                .implementationPlan("Generated content")
-                .apiContracts("Generated content")
-                .testSuggestions("Generated content")
                 .copilotPrompt("Generated content")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -153,7 +145,7 @@ class AiAnalysisServiceImplTest {
 
         aiAnalysisService.analyzeStory(request);
 
-        // Verify AI is called 5 times: summary, implementation plan, API contracts, test suggestions, copilot prompt
-        verify(aiService, times(5)).generateResponse(anyString());
+        // Verify AI is called once for copilot prompt generation only
+        verify(aiService, times(1)).generateResponse(anyString());
     }
 }
