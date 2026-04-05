@@ -62,6 +62,14 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Apache HttpClient 5 — replaces JDK's HttpURLConnection for RestClient.
+             Fixes HttpRetryException "cannot retry due to server authentication, in streaming mode"
+             when OpenAI returns 401/403 error responses (Spring AI 0.8.1 + JDK bug). -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
+
         <!-- Jackson -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
