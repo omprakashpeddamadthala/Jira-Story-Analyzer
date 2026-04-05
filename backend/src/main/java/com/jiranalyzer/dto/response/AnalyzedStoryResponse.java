@@ -26,6 +26,7 @@ public class AnalyzedStoryResponse {
     private String implementationPlan;
     private String apiContracts;
     private String testSuggestions;
+    private String copilotPrompt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
