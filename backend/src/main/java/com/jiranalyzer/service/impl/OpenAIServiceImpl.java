@@ -12,14 +12,17 @@ import org.springframework.ai.chat.prompt.Prompt;
 public class OpenAIServiceImpl implements AIService {
 
     private final ChatClient chatClient;
+    private final AIProperties aiProperties;
 
     public OpenAIServiceImpl(ChatClient chatClient, AIProperties aiProperties) {
         this.chatClient = chatClient;
+        this.aiProperties = aiProperties;
         log.info("OpenAI AI Service initialized with model: {}", aiProperties.getOpenai().getModel());
     }
 
     @Override
     public String generateResponse(String prompt) {
+        validateApiKey();
         try {
             log.debug("Calling OpenAI with prompt length: {}", prompt.length());
             ChatResponse response = chatClient.call(new Prompt(prompt));
@@ -46,5 +49,14 @@ public class OpenAIServiceImpl implements AIService {
     @Override
     public String getProviderName() {
         return "openai";
+    }
+
+    private void validateApiKey() {
+        String apiKey = aiProperties.getOpenai().getApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new AiAnalysisException(
+                    "OpenAI API key is not configured. Please set 'ai.openai.api-key' in application.yml "
+                            + "or provide the OPENAI_API_KEY environment variable.");
+        }
     }
 }

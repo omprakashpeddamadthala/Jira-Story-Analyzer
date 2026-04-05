@@ -35,6 +35,7 @@ public class GeminiServiceImpl implements AIService {
 
     @Override
     public String generateResponse(String prompt) {
+        validateApiKey();
         try {
             log.debug("Calling Gemini with prompt length: {}", prompt.length());
 
@@ -85,6 +86,15 @@ public class GeminiServiceImpl implements AIService {
                 "contents", List.of(contentPart),
                 "generationConfig", generationConfig
         );
+    }
+
+    private void validateApiKey() {
+        String apiKey = aiProperties.getGemini().getApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new AiAnalysisException(
+                    "Gemini API key is not configured. Please set 'ai.gemini.api-key' in application.yml "
+                            + "or provide the GEMINI_API_KEY environment variable.");
+        }
     }
 
     private String extractContent(String responseBody) {
