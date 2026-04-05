@@ -83,4 +83,30 @@ class OpenAIServiceImplTest {
 
         assertTrue(exception.getMessage().contains("empty or null response"));
     }
+
+    @Test
+    void shouldThrowOnMissingApiKeyAtCallTime() {
+        AIProperties properties = new AIProperties();
+        properties.getOpenai().setApiKey("");
+        properties.getOpenai().setModel("gpt-4o");
+        OpenAIServiceImpl serviceWithNoKey = new OpenAIServiceImpl(chatClient, properties);
+
+        AiAnalysisException exception = assertThrows(AiAnalysisException.class,
+                () -> serviceWithNoKey.generateResponse("Test prompt"));
+
+        assertTrue(exception.getMessage().contains("API key is not configured"));
+    }
+
+    @Test
+    void shouldThrowOnNullApiKeyAtCallTime() {
+        AIProperties properties = new AIProperties();
+        properties.getOpenai().setApiKey(null);
+        properties.getOpenai().setModel("gpt-4o");
+        OpenAIServiceImpl serviceWithNullKey = new OpenAIServiceImpl(chatClient, properties);
+
+        AiAnalysisException exception = assertThrows(AiAnalysisException.class,
+                () -> serviceWithNullKey.generateResponse("Test prompt"));
+
+        assertTrue(exception.getMessage().contains("API key is not configured"));
+    }
 }

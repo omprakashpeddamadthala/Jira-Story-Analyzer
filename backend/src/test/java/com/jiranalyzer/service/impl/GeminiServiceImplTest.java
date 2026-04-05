@@ -125,4 +125,30 @@ class GeminiServiceImplTest {
         assertThrows(AiAnalysisException.class,
                 () -> geminiService.generateResponse("Test prompt"));
     }
+
+    @Test
+    void shouldThrowOnMissingApiKeyAtCallTime() {
+        AIProperties properties = new AIProperties();
+        properties.getGemini().setApiKey("");
+        properties.getGemini().setModel("gemini-2.0-flash");
+        GeminiServiceImpl serviceWithNoKey = new GeminiServiceImpl(restTemplate, properties, objectMapper);
+
+        AiAnalysisException exception = assertThrows(AiAnalysisException.class,
+                () -> serviceWithNoKey.generateResponse("Test prompt"));
+
+        assertTrue(exception.getMessage().contains("API key is not configured"));
+    }
+
+    @Test
+    void shouldThrowOnNullApiKeyAtCallTime() {
+        AIProperties properties = new AIProperties();
+        properties.getGemini().setApiKey(null);
+        properties.getGemini().setModel("gemini-2.0-flash");
+        GeminiServiceImpl serviceWithNullKey = new GeminiServiceImpl(restTemplate, properties, objectMapper);
+
+        AiAnalysisException exception = assertThrows(AiAnalysisException.class,
+                () -> serviceWithNullKey.generateResponse("Test prompt"));
+
+        assertTrue(exception.getMessage().contains("API key is not configured"));
+    }
 }
