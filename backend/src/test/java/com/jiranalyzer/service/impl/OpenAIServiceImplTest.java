@@ -71,4 +71,16 @@ class OpenAIServiceImplTest {
 
         assertTrue(exception.getMessage().contains("OpenAI API call failed"));
     }
+
+    @Test
+    void shouldThrowAiAnalysisExceptionOnNullResponse() {
+        ChatResponse chatResponse = mock(ChatResponse.class);
+        when(chatResponse.getResult()).thenReturn(null);
+        when(chatClient.call(any(Prompt.class))).thenReturn(chatResponse);
+
+        AiAnalysisException exception = assertThrows(AiAnalysisException.class,
+                () -> openAIService.generateResponse("Test prompt"));
+
+        assertTrue(exception.getMessage().contains("empty or null response"));
+    }
 }
