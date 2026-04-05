@@ -10,6 +10,11 @@ import com.jiranalyzer.service.AiAnalysisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -63,6 +68,124 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
             log.error("Failed to analyze story {}: {}", request.getJiraKey(), ex.getMessage(), ex);
             throw new AiAnalysisException("Failed to analyze story: " + ex.getMessage(), ex);
         }
+    }
+
+    @Override
+    public void analyzeStoryStreaming(AnalyzeStoryRequest request, SseEmitter emitter) {
+        log.info("Streaming analysis for story: {} - {}", request.getJiraKey(), request.getTitle());
+
+        // Define sections in order
+        Map<String, String> sectionGenerators = new LinkedHashMap<>();
+        sectionGenerators.put("simplifiedSummary", "summary");
+        sectionGenerators.put("implementationPlan", "plan");
+        sectionGenerators.put("apiContracts", "api");
+        sectionGenerators.put("testSuggestions", "tests");
+
+        String simplifiedSummary = null;
+        String implementationPlan = null;
+        String apiContracts = null;
+        String testSuggestions = null;
+
+        try {
+            // Send start event
+            sendSseEvent(emitter, "start", "{\"jiraKey\":\"" + request.getJiraKey() + "\",\"provider\":\"" + aiService.getProviderName() + "\"}");
+
+            // Generate and stream each section
+            sendSseEvent(emitter, "section-start", "{\"section\":\"simplifiedSummary\",\"label\":\"Simplified Summary\"}");
+            simplifiedSummary = generateSimplifiedSummary(request);
+            sendSseEvent(emitter, "section-complete", "{\"section\":\"simplifiedSummary\",\"content\":" + escapeJson(simplifiedSummary) + "}");
+
+            sendSseEvent(emitter, "section-start", "{\"section\":\"implementationPlan\",\"label\":\"Implementation Plan\"}");
+            implementationPlan = generateImplementationPlan(request);
+            sendSseEvent(emitter, "section-complete", "{\"section\":\"implementationPlan\",\"content\":" + escapeJson(implementationPlan) + "}");
+
+            sendSseEvent(emitter, "section-start", "{\"section\":\"apiContracts\",\"label\":\"API Contracts\"}");
+            apiContracts = generateApiContracts(request);
+            sendSseEvent(emitter, "section-complete", "{\"section\":\"apiContracts\",\"content\":" + escapeJson(apiContracts) + "}");
+
+            sendSseEvent(emitter, "section-start", "{\"section\":\"testSuggestions\",\"label\":\"Test Suggestions\"}");
+            testSuggestions = generateTestSuggestions(request);
+            sendSseEvent(emitter, "section-complete", "{\"section\":\"testSuggestions\",\"content\":" + escapeJson(testSuggestions) + "}");
+
+            // Save to database
+            AnalyzedStory savedStory = saveAnalyzedStory(request, simplifiedSummary, implementationPlan, apiContracts, testSuggestions);
+            AnalyzedStoryResponse response = mapToResponse(savedStory);
+
+            // Send final complete event with full response
+            String responseJson = String.format(
+                    "{\"id\":\"%s\",\"jiraKey\":\"%s\",\"createdAt\":\"%s\",\"updatedAt\":\"%s\"}",
+                    response.getId(), response.getJiraKey(), response.getCreatedAt(), response.getUpdatedAt()
+            );
+            sendSseEvent(emitter, "complete", responseJson);
+            emitter.complete();
+            log.info("Streaming analysis completed for story: {}", request.getJiraKey());
+        } catch (Exception ex) {
+            log.error("Streaming analysis failed for story {}: {}", request.getJiraKey(), ex.getMessage(), ex);
+            try {
+                String errorMsg = ex.getMessage() != null ? ex.getMessage() : "Unknown error";
+                sendSseEvent(emitter, "error", "{\"message\":" + escapeJson(errorMsg) + "}");
+                emitter.complete();
+            } catch (Exception sendEx) {
+                log.error("Failed to send error event: {}", sendEx.getMessage());
+                emitter.completeWithError(ex);
+            }
+        }
+    }
+
+    private void sendSseEvent(SseEmitter emitter, String eventName, String data) throws IOException {
+        emitter.send(SseEmitter.event()
+                .name(eventName)
+                .data(data));
+    }
+
+    private String escapeJson(String value) {
+        if (value == null) return "null";
+        StringBuilder sb = new StringBuilder("\"");
+        for (char c : value.toCharArray()) {
+            switch (c) {
+                case '"': sb.append("\\\""); break;
+                case '\\': sb.append("\\\\"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default:
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        sb.append("\"");
+        return sb.toString();
+    }
+
+    private AnalyzedStory saveAnalyzedStory(AnalyzeStoryRequest request,
+                                             String simplifiedSummary, String implementationPlan,
+                                             String apiContracts, String testSuggestions) {
+        Optional<AnalyzedStory> existingStory = analyzedStoryRepository.findByJiraKey(request.getJiraKey());
+
+        AnalyzedStory story;
+        if (existingStory.isPresent()) {
+            story = existingStory.get();
+            log.info("Updating existing analysis for story: {}", request.getJiraKey());
+        } else {
+            story = new AnalyzedStory();
+            story.setJiraKey(request.getJiraKey());
+        }
+
+        story.setTitle(request.getTitle());
+        story.setDescription(request.getDescription());
+        story.setAcceptanceCriteria(request.getAcceptanceCriteria());
+        story.setDefinitionOfDone(request.getDefinitionOfDone());
+        story.setSimplifiedSummary(simplifiedSummary);
+        story.setImplementationPlan(implementationPlan);
+        story.setApiContracts(apiContracts);
+        story.setTestSuggestions(testSuggestions);
+
+        AnalyzedStory savedStory = analyzedStoryRepository.save(story);
+        log.info("Story analysis saved with ID: {}", savedStory.getId());
+        return savedStory;
     }
 
     private String generateSimplifiedSummary(AnalyzeStoryRequest request) {
