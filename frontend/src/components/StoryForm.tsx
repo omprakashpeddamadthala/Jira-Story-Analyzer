@@ -11,12 +11,13 @@ import {
   Fade,
 } from '@mui/material';
 import {
-  AutoAwesome as AnalyzeIcon,
+  Psychology as AnalyzeIcon,
   Stop as StopIcon,
-  RocketLaunch as RocketIcon,
+  Psychology as PsychologyIcon,
 } from '@mui/icons-material';
 import type { JiraStory, AnalyzeStoryRequest, AnalyzedStory, StreamingState, AnalysisSectionKey } from '../types';
 import { analysisApi } from '../services/api';
+import { colors } from '../theme/theme';
 
 interface StoryFormProps {
   selectedStory: JiraStory | null;
@@ -144,18 +145,18 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-          border: '2px dashed',
-          borderColor: 'divider',
+          bgcolor: colors.surfaceContainer,
+          border: `2px dashed ${colors.outlineVariant}40`,
         }}
       >
         <CardContent>
           <Box textAlign="center" py={4}>
-            <RocketIcon
+            <PsychologyIcon
               sx={{
                 fontSize: 72,
-                color: 'primary.light',
+                color: colors.primary,
                 mb: 2,
+                opacity: 0.6,
                 animation: 'float 3s ease-in-out infinite',
                 '@keyframes float': {
                   '0%, 100%': { transform: 'translateY(0)' },
@@ -163,11 +164,19 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
                 },
               }}
             />
-            <Typography variant="h5" fontWeight={700} gutterBottom>
+            <Typography
+              variant="h5"
+              sx={{
+                fontFamily: '"Manrope", sans-serif',
+                fontWeight: 700,
+                color: colors.onSurface,
+                mb: 1,
+              }}
+            >
               Ready to Analyze
             </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Select a Jira story from the left panel to generate a Copilot prompt
+            <Typography sx={{ color: colors.onSurfaceVariant, fontSize: '0.9rem' }}>
+              Select a Jira story to generate a Copilot prompt
             </Typography>
           </Box>
         </CardContent>
@@ -181,23 +190,57 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
         height: '100%',
         transition: 'all 0.3s ease',
         ...(streaming.isStreaming && {
-          boxShadow: '0 0 20px rgba(101, 84, 192, 0.2)',
-          border: '1px solid',
-          borderColor: 'secondary.light',
+          boxShadow: `0 0 24px ${colors.primaryContainer}40`,
+          border: `1px solid ${colors.primary}30`,
         }),
       }}
     >
-      <CardContent>
-        <Box display="flex" alignItems="center" gap={1} mb={2}>
-          <AnalyzeIcon color="primary" />
-          <Typography variant="h6" fontWeight={700}>
-            Analyze: {selectedStory.key}
+      <CardContent sx={{ p: 3 }}>
+        {/* Breadcrumb-like header */}
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Typography
+              sx={{
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: colors.onSurfaceVariant,
+              }}
+            >
+              Analyzer
+            </Typography>
+            <Typography sx={{ fontSize: '0.6rem', color: colors.onSurfaceVariant }}>{'>'}</Typography>
+            <Typography
+              sx={{
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: colors.primary,
+              }}
+            >
+              {selectedStory.key}
+            </Typography>
+          </Box>
+          <Typography
+            variant="h5"
+            sx={{
+              fontFamily: '"Manrope", sans-serif',
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              color: colors.onSurface,
+              lineHeight: 1.3,
+              fontSize: '1.3rem',
+            }}
+          >
+            {title || selectedStory.summary}
           </Typography>
         </Box>
 
         {error && (
           <Fade in>
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError(null)}>
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
               {error}
             </Alert>
           </Fade>
@@ -213,7 +256,6 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
             variant="outlined"
             size="small"
             disabled={streaming.isStreaming}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           />
 
           <TextField
@@ -227,7 +269,6 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
             variant="outlined"
             size="small"
             disabled={streaming.isStreaming}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           />
 
           <TextField
@@ -242,7 +283,6 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
             size="small"
             placeholder="Enter the acceptance criteria for this story..."
             disabled={streaming.isStreaming}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           />
 
           <TextField
@@ -257,7 +297,6 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
             size="small"
             placeholder="Enter the definition of done for this story..."
             disabled={streaming.isStreaming}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           />
 
           {streaming.isStreaming ? (
@@ -269,7 +308,7 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
                 fullWidth
                 onClick={handleStop}
                 startIcon={<StopIcon />}
-                sx={{ borderRadius: 2, py: 1.2 }}
+                sx={{ py: 1.2 }}
               >
                 Stop Analysis
               </Button>
@@ -291,14 +330,7 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
                   <CircularProgress
                     size={56}
                     thickness={3}
-                    sx={{
-                      color: 'secondary.main',
-                      animation: 'spin 1.5s linear infinite',
-                      '@keyframes spin': {
-                        from: { transform: 'rotate(0deg)' },
-                        to: { transform: 'rotate(360deg)' },
-                      },
-                    }}
+                    sx={{ color: colors.primary }}
                   />
                   <Box
                     position="absolute"
@@ -310,13 +342,13 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
                     alignItems="center"
                     justifyContent="center"
                   >
-                    <AnalyzeIcon sx={{ fontSize: 24, color: 'secondary.main' }} />
+                    <AnalyzeIcon sx={{ fontSize: 24, color: colors.primary }} />
                   </Box>
                 </Box>
-                <Typography variant="body2" color="secondary.main" fontWeight={600}>
+                <Typography variant="body2" sx={{ color: colors.primary, fontWeight: 600 }}>
                   Generating Copilot Prompt with {streaming.provider || 'AI'}...
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{ color: colors.onSurfaceVariant }}>
                   Analyzing story and building implementation guidance
                 </Typography>
               </Box>
@@ -327,22 +359,24 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
               size="large"
               fullWidth
               onClick={handleAnalyze}
-              startIcon={<RocketIcon />}
+              startIcon={<PsychologyIcon sx={{ transition: 'transform 0.2s' }} />}
               sx={{
-                borderRadius: 2,
-                py: 1.2,
-                background: 'linear-gradient(135deg, #6554C0 0%, #0052CC 100%)',
+                py: 1.5,
+                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryContainer} 100%)`,
+                color: colors.onPrimary,
                 fontWeight: 700,
-                fontSize: '1rem',
-                transition: 'all 0.3s ease',
+                fontSize: '0.95rem',
+                transition: 'all 0.2s ease',
+                boxShadow: `0 4px 20px ${colors.primary}30`,
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #403294 0%, #0747A6 100%)',
                   transform: 'translateY(-1px)',
-                  boxShadow: '0 4px 12px rgba(101, 84, 192, 0.4)',
+                  boxShadow: `0 8px 28px ${colors.primary}40`,
+                  '& .MuiSvgIcon-root': { transform: 'rotate(12deg)' },
                 },
+                '&:active': { transform: 'scale(0.98)' },
               }}
             >
-              Generate Copilot Prompt
+              Analyze with OpenAI
             </Button>
           )}
         </Box>
