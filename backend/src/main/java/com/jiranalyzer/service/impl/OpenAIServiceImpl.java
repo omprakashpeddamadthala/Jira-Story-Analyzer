@@ -23,7 +23,12 @@ public class OpenAIServiceImpl implements AIService {
         try {
             log.debug("Calling OpenAI with prompt length: {}", prompt.length());
             ChatResponse response = chatClient.call(new Prompt(prompt));
-            String content = response.getResult().getOutput().getContent();
+            String content = response.getResult() != null && response.getResult().getOutput() != null
+                    ? response.getResult().getOutput().getContent()
+                    : null;
+            if (content == null) {
+                throw new AiAnalysisException("OpenAI returned an empty or null response");
+            }
             log.debug("OpenAI response received, length: {}", content.length());
             return content;
         } catch (Exception ex) {
