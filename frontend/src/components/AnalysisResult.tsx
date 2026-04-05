@@ -1,414 +1,306 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Button,
   Card,
   CardContent,
-  Tab,
-  Tabs,
   Typography,
   Chip,
-  IconButton,
-  Tooltip,
   Paper,
   Skeleton,
   Fade,
 } from '@mui/material';
 import {
-  Summarize as SummaryIcon,
-  ListAlt as PlanIcon,
-  Api as ApiIcon,
-  BugReport as TestIcon,
   ContentCopy as CopyIcon,
   Check as CheckIcon,
   SmartToy as CopilotIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
-import type { AnalyzedStory, StreamingState, AnalysisSectionKey } from '../types';
+import type { AnalyzedStory, StreamingState } from '../types';
 
 interface AnalysisResultProps {
   result: AnalyzedStory | null;
   streamingState?: StreamingState;
 }
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-const SECTION_KEYS: AnalysisSectionKey[] = ['simplifiedSummary', 'implementationPlan', 'apiContracts', 'testSuggestions', 'copilotPrompt'];
-
-function TabPanel({ children, value, index }: TabPanelProps) {
+function LoadingSkeleton() {
   return (
-    <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
-    </div>
-  );
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard API not available
-    }
-  };
-
-  return (
-    <Tooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
-      <IconButton size="small" onClick={handleCopy}>
-        {copied ? <CheckIcon fontSize="small" color="success" /> : <CopyIcon fontSize="small" />}
-      </IconButton>
-    </Tooltip>
-  );
-}
-
-function StreamingSkeleton() {
-  return (
-    <Box sx={{ pt: 1 }}>
-      <Skeleton variant="text" width="90%" height={24} />
-      <Skeleton variant="text" width="75%" height={24} />
-      <Skeleton variant="text" width="85%" height={24} />
-      <Skeleton variant="text" width="60%" height={24} sx={{ mb: 2 }} />
-      <Skeleton variant="text" width="80%" height={24} />
-      <Skeleton variant="text" width="70%" height={24} />
+    <Box
+      sx={{
+        pt: 2,
+        animation: 'fadeIn 0.5s ease-out',
+        '@keyframes fadeIn': {
+          from: { opacity: 0 },
+          to: { opacity: 1 },
+        },
+      }}
+    >
+      {[90, 75, 85, 60, 80, 70, 65, 90, 50, 75].map((width, i) => (
+        <Skeleton
+          key={i}
+          variant="text"
+          width={`${width}%`}
+          height={24}
+          sx={{
+            mb: i === 3 || i === 6 ? 2 : 0.5,
+            animation: 'shimmer 1.8s ease-in-out infinite',
+            animationDelay: `${i * 0.1}s`,
+            '@keyframes shimmer': {
+              '0%': { opacity: 0.3 },
+              '50%': { opacity: 0.7 },
+              '100%': { opacity: 0.3 },
+            },
+          }}
+        />
+      ))}
     </Box>
   );
 }
 
-function MarkdownContent({ content }: { content: string }) {
-  return (
-    <Fade in timeout={600}>
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 2.5,
-          backgroundColor: '#FAFBFC',
-          maxHeight: '60vh',
-          overflow: 'auto',
-        }}
-      >
-        <Box display="flex" justifyContent="flex-end" mb={0.5}>
-          <CopyButton text={content} />
-        </Box>
-        <Box
-          sx={{
-            '& h1': { fontSize: '1.4rem', fontWeight: 700, mt: 2, mb: 1 },
-            '& h2': { fontSize: '1.2rem', fontWeight: 600, mt: 2, mb: 1 },
-            '& h3': { fontSize: '1.05rem', fontWeight: 600, mt: 1.5, mb: 0.5 },
-            '& p': { fontSize: '0.9rem', lineHeight: 1.7, mb: 1 },
-            '& ul, & ol': { pl: 3, mb: 1 },
-            '& li': { fontSize: '0.9rem', lineHeight: 1.7, mb: 0.3 },
-            '& code': {
-              backgroundColor: 'rgba(0,0,0,0.06)',
-              borderRadius: '4px',
-              px: 0.8,
-              py: 0.2,
-              fontSize: '0.82rem',
-              fontFamily: '"Fira Code", "Consolas", monospace',
-            },
-            '& pre': {
-              backgroundColor: '#1e1e1e',
-              color: '#d4d4d4',
-              borderRadius: '8px',
-              p: 2,
-              overflow: 'auto',
-              mb: 1.5,
-              '& code': {
-                backgroundColor: 'transparent',
-                color: 'inherit',
-                p: 0,
-              },
-            },
-            '& table': {
-              width: '100%',
-              borderCollapse: 'collapse',
-              mb: 1.5,
-              '& th, & td': {
-                border: '1px solid #ddd',
-                p: 1,
-                fontSize: '0.85rem',
-              },
-              '& th': { backgroundColor: '#f5f5f5', fontWeight: 600 },
-            },
-            '& blockquote': {
-              borderLeft: '3px solid',
-              borderColor: 'primary.main',
-              pl: 2,
-              ml: 0,
-              color: 'text.secondary',
-              fontStyle: 'italic',
-            },
-            '& hr': { my: 2, borderColor: 'divider' },
-            animation: 'fadeInUp 0.5s ease-out',
-            '@keyframes fadeInUp': {
-              from: { opacity: 0, transform: 'translateY(10px)' },
-              to: { opacity: 1, transform: 'translateY(0)' },
-            },
-          }}
-        >
-          <ReactMarkdown>{content}</ReactMarkdown>
-        </Box>
-      </Paper>
-    </Fade>
-  );
-}
+const markdownStyles = {
+  '& h1': { fontSize: '1.5rem', fontWeight: 700, mt: 2.5, mb: 1.5, color: '#1a1a2e' },
+  '& h2': {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    mt: 3,
+    mb: 1,
+    color: '#16213e',
+    pb: 0.5,
+    borderBottom: '2px solid',
+    borderColor: 'secondary.light',
+  },
+  '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 2, mb: 0.5, color: '#0f3460' },
+  '& p': { fontSize: '0.95rem', lineHeight: 1.8, mb: 1.5, color: '#333' },
+  '& ul, & ol': { pl: 3, mb: 1.5 },
+  '& li': { fontSize: '0.95rem', lineHeight: 1.8, mb: 0.5 },
+  '& code': {
+    backgroundColor: 'rgba(101, 84, 192, 0.08)',
+    borderRadius: '4px',
+    px: 0.8,
+    py: 0.2,
+    fontSize: '0.85rem',
+    fontFamily: '"Fira Code", "Consolas", monospace',
+    color: '#6554C0',
+  },
+  '& pre': {
+    backgroundColor: '#1e1e2e',
+    color: '#cdd6f4',
+    borderRadius: '10px',
+    p: 2.5,
+    overflow: 'auto',
+    mb: 2,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+    '& code': {
+      backgroundColor: 'transparent',
+      color: 'inherit',
+      p: 0,
+    },
+  },
+  '& table': {
+    width: '100%',
+    borderCollapse: 'collapse',
+    mb: 2,
+    '& th, & td': {
+      border: '1px solid #e0e0e0',
+      p: 1.2,
+      fontSize: '0.9rem',
+    },
+    '& th': { backgroundColor: '#f0f0f8', fontWeight: 600, color: '#333' },
+  },
+  '& blockquote': {
+    borderLeft: '4px solid',
+    borderColor: 'secondary.main',
+    pl: 2,
+    ml: 0,
+    my: 2,
+    color: 'text.secondary',
+    fontStyle: 'italic',
+    backgroundColor: 'rgba(101, 84, 192, 0.04)',
+    borderRadius: '0 8px 8px 0',
+    py: 1,
+  },
+  '& hr': { my: 3, borderColor: 'divider' },
+  animation: 'slideUp 0.6s ease-out',
+  '@keyframes slideUp': {
+    from: { opacity: 0, transform: 'translateY(20px)' },
+    to: { opacity: 1, transform: 'translateY(0)' },
+  },
+};
 
-function CopilotPromptContent({ content }: { content: string }) {
+export default function AnalysisResult({ result, streamingState }: AnalysisResultProps) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopyAll = async () => {
+  const isStreaming = streamingState?.isStreaming ?? false;
+  const streamSections = streamingState?.sections ?? {};
+  const activeSection = streamingState?.activeSection ?? null;
+
+  const copilotContent: string | null =
+    (streamSections.copilotPrompt as string) || result?.copilotPrompt || null;
+
+  const isLoading = isStreaming && activeSection === 'copilotPrompt';
+  const hasContent = !!copilotContent || isLoading;
+
+  if (!hasContent && !result) {
+    return null;
+  }
+
+  const handleCopy = async () => {
+    if (!copilotContent) return;
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(copilotContent);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
     } catch {
       // Clipboard API not available
     }
   };
 
   return (
-    <Fade in timeout={600}>
-      <Paper
-        variant="outlined"
+    <Fade in timeout={500}>
+      <Card
         sx={{
-          p: 3,
-          backgroundColor: '#FAFBFC',
-          border: '2px solid',
-          borderColor: 'secondary.light',
-          borderRadius: 2,
+          transition: 'all 0.4s ease',
+          overflow: 'visible',
+          ...(isStreaming
+            ? {
+                boxShadow: '0 0 24px rgba(101, 84, 192, 0.25)',
+                border: '1px solid',
+                borderColor: 'secondary.light',
+              }
+            : {
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                '&:hover': {
+                  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
+                },
+              }),
         }}
       >
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="subtitle1" fontWeight={700} color="secondary.main">
-            GitHub Copilot Implementation Prompt
-          </Typography>
-          <Button
-            variant="contained"
-            color="secondary"
-            size="small"
-            startIcon={copied ? <CheckIcon /> : <CopyIcon />}
-            onClick={handleCopyAll}
-            sx={{ minWidth: 160 }}
-          >
-            {copied ? 'Copied!' : 'Copy Full Prompt'}
-          </Button>
-        </Box>
-        <Box
-          sx={{
-            maxHeight: '75vh',
-            overflow: 'auto',
-            '& h1': { fontSize: '1.5rem', fontWeight: 700, mt: 2, mb: 1.5 },
-            '& h2': { fontSize: '1.25rem', fontWeight: 600, mt: 2, mb: 1 },
-            '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 1.5, mb: 0.5 },
-            '& p': { fontSize: '0.95rem', lineHeight: 1.8, mb: 1.5 },
-            '& ul, & ol': { pl: 3, mb: 1.5 },
-            '& li': { fontSize: '0.95rem', lineHeight: 1.8, mb: 0.5 },
-            '& code': {
-              backgroundColor: 'rgba(0,0,0,0.06)',
-              borderRadius: '4px',
-              px: 0.8,
-              py: 0.2,
-              fontSize: '0.85rem',
-              fontFamily: '"Fira Code", "Consolas", monospace',
-            },
-            '& pre': {
-              backgroundColor: '#1e1e1e',
-              color: '#d4d4d4',
-              borderRadius: '8px',
-              p: 2,
-              overflow: 'auto',
-              mb: 2,
-              '& code': {
-                backgroundColor: 'transparent',
-                color: 'inherit',
-                p: 0,
-              },
-            },
-            '& table': {
-              width: '100%',
-              borderCollapse: 'collapse',
-              mb: 2,
-              '& th, & td': {
-                border: '1px solid #ddd',
-                p: 1,
-                fontSize: '0.9rem',
-              },
-              '& th': { backgroundColor: '#f5f5f5', fontWeight: 600 },
-            },
-            '& blockquote': {
-              borderLeft: '3px solid',
-              borderColor: 'secondary.main',
-              pl: 2,
-              ml: 0,
-              color: 'text.secondary',
-              fontStyle: 'italic',
-            },
-            '& hr': { my: 2, borderColor: 'divider' },
-          }}
-        >
-          <ReactMarkdown>{content}</ReactMarkdown>
-        </Box>
-      </Paper>
-    </Fade>
-  );
-}
-
-export default function AnalysisResult({ result, streamingState }: AnalysisResultProps) {
-  const [tabValue, setTabValue] = useState(0);
-
-  const isStreaming = streamingState?.isStreaming ?? false;
-  const streamSections = streamingState?.sections ?? {};
-  const completedSections = useMemo(() => streamingState?.completedSections ?? [], [streamingState?.completedSections]);
-  const activeSection = streamingState?.activeSection ?? null;
-  const completedCount = completedSections.length;
-
-  // Auto-switch to the latest completed section's tab during streaming
-  const autoTabIndex = useMemo(() => {
-    if (completedCount > 0) {
-      const latestSection = completedSections[completedCount - 1];
-      const idx = SECTION_KEYS.indexOf(latestSection);
-      if (idx >= 0) return idx;
-    }
-    return null;
-  }, [completedCount, completedSections]);
-
-  // Use auto tab when streaming, manual tab otherwise
-  const effectiveTab = autoTabIndex !== null && isStreaming ? autoTabIndex : tabValue;
-
-  // Determine content source: streaming sections or result from history
-  const getContent = (key: AnalysisSectionKey): string | null => {
-    if (streamSections[key]) return streamSections[key] as string;
-    if (result) return result[key] || null;
-    return null;
-  };
-
-  const isSectionLoading = (key: AnalysisSectionKey): boolean => {
-    return isStreaming && activeSection === key;
-  };
-
-  const isSectionAvailable = (key: AnalysisSectionKey): boolean => {
-    return !!getContent(key) || isSectionLoading(key);
-  };
-
-  const hasAnyContent = SECTION_KEYS.some((key) => getContent(key)) || isStreaming;
-
-  if (!hasAnyContent && !result) {
-    return null;
-  }
-
-  return (
-    <Card
-      sx={{
-        transition: 'all 0.3s ease',
-        ...(isStreaming && {
-          boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.3)',
-        }),
-      }}
-    >
-      <CardContent>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Box>
-            <Typography variant="h6">
-              Analysis Results
-              {isStreaming && (
-                <Box
-                  component="span"
-                  sx={{
-                    display: 'inline-block',
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    backgroundColor: 'primary.main',
-                    ml: 1,
-                    animation: 'blink 1s ease-in-out infinite',
-                    '@keyframes blink': {
-                      '0%, 100%': { opacity: 1 },
-                      '50%': { opacity: 0.2 },
-                    },
-                  }}
-                />
-              )}
-            </Typography>
-            <Box display="flex" gap={1} mt={0.5}>
-              {result && <Chip label={result.jiraKey} size="small" color="primary" />}
-              {streamingState?.provider && (
-                <Chip label={streamingState.provider} size="small" variant="outlined" color="secondary" />
-              )}
-              {result?.createdAt && (
-                <Chip
-                  label={new Date(result.createdAt).toLocaleString()}
-                  size="small"
-                  variant="outlined"
-                />
-              )}
-            </Box>
-          </Box>
-        </Box>
-
-        <Tabs
-          value={effectiveTab}
-          onChange={(_, newValue) => setTabValue(newValue)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab
-            icon={<SummaryIcon />}
-            label="Summary"
-            iconPosition="start"
-            disabled={!isSectionAvailable('simplifiedSummary')}
-          />
-          <Tab
-            icon={<PlanIcon />}
-            label="Implementation Plan"
-            iconPosition="start"
-            disabled={!isSectionAvailable('implementationPlan')}
-          />
-          <Tab
-            icon={<ApiIcon />}
-            label="API Contracts"
-            iconPosition="start"
-            disabled={!isSectionAvailable('apiContracts')}
-          />
-          <Tab
-            icon={<TestIcon />}
-            label="Test Cases"
-            iconPosition="start"
-            disabled={!isSectionAvailable('testSuggestions')}
-          />
-          <Tab
-            icon={<CopilotIcon />}
-            label="Copilot Prompt"
-            iconPosition="start"
-            disabled={!isSectionAvailable('copilotPrompt')}
+        <CardContent sx={{ p: 3 }}>
+          {/* Header */}
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            mb={2.5}
             sx={{
-              fontWeight: isSectionAvailable('copilotPrompt') ? 700 : 400,
-              color: isSectionAvailable('copilotPrompt') ? 'secondary.main' : undefined,
+              pb: 2,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
             }}
-          />
-        </Tabs>
+          >
+            <Box display="flex" alignItems="center" gap={1.5}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #6554C0 0%, #0052CC 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CopilotIcon sx={{ color: 'white', fontSize: 22 }} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+                  Copilot Implementation Prompt
+                </Typography>
+                <Box display="flex" gap={0.8} mt={0.5}>
+                  {result && (
+                    <Chip
+                      label={result.jiraKey}
+                      size="small"
+                      sx={{
+                        fontWeight: 600,
+                        background: 'linear-gradient(135deg, #0052CC 0%, #6554C0 100%)',
+                        color: 'white',
+                      }}
+                    />
+                  )}
+                  {streamingState?.provider && (
+                    <Chip
+                      label={streamingState.provider}
+                      size="small"
+                      variant="outlined"
+                      color="secondary"
+                      sx={{ fontWeight: 500 }}
+                    />
+                  )}
+                  {result?.createdAt && (
+                    <Chip
+                      label={new Date(result.createdAt).toLocaleString()}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem' }}
+                    />
+                  )}
+                </Box>
+              </Box>
+            </Box>
 
-        {SECTION_KEYS.map((key, idx) => (
-          <TabPanel key={key} value={effectiveTab} index={idx}>
-            {isSectionLoading(key) ? (
-              <StreamingSkeleton />
-            ) : getContent(key) ? (
-              key === 'copilotPrompt' ? (
-                <CopilotPromptContent content={getContent(key) as string} />
-              ) : (
-                <MarkdownContent content={getContent(key) as string} />
-              )
-            ) : null}
-          </TabPanel>
-        ))}
-      </CardContent>
-    </Card>
+            {copilotContent && (
+              <Button
+                variant="contained"
+                startIcon={copied ? <CheckIcon /> : <CopyIcon />}
+                onClick={handleCopy}
+                sx={{
+                  minWidth: 180,
+                  borderRadius: 2,
+                  py: 1,
+                  fontWeight: 700,
+                  background: copied
+                    ? 'linear-gradient(135deg, #36B37E 0%, #00875A 100%)'
+                    : 'linear-gradient(135deg, #6554C0 0%, #403294 100%)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 12px rgba(101, 84, 192, 0.4)',
+                  },
+                }}
+              >
+                {copied ? 'Copied to Clipboard!' : 'Copy Full Prompt'}
+              </Button>
+            )}
+          </Box>
+
+          {/* Content */}
+          {isLoading ? (
+            <LoadingSkeleton />
+          ) : copilotContent ? (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                backgroundColor: '#FAFBFE',
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: 'rgba(101, 84, 192, 0.12)',
+                maxHeight: '70vh',
+                overflow: 'auto',
+                '&::-webkit-scrollbar': {
+                  width: 6,
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: 'rgba(101, 84, 192, 0.3)',
+                  borderRadius: 3,
+                },
+              }}
+            >
+              <Box sx={markdownStyles}>
+                <ReactMarkdown>{copilotContent}</ReactMarkdown>
+              </Box>
+            </Paper>
+          ) : (
+            <Box textAlign="center" py={4}>
+              <CopilotIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+              <Typography variant="body1" color="text.secondary">
+                No Copilot prompt generated yet
+              </Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+    </Fade>
   );
 }

@@ -33,10 +33,6 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
         log.info("Analyzing story: {} - {}", request.getJiraKey(), request.getTitle());
 
         try {
-            String simplifiedSummary = generateSimplifiedSummary(request);
-            String implementationPlan = generateImplementationPlan(request);
-            String apiContracts = generateApiContracts(request);
-            String testSuggestions = generateTestSuggestions(request);
             String copilotPrompt = generateCopilotPrompt(request);
 
             Optional<AnalyzedStory> existingStory = analyzedStoryRepository.findByJiraKey(request.getJiraKey());
@@ -54,10 +50,6 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
             story.setDescription(request.getDescription());
             story.setAcceptanceCriteria(request.getAcceptanceCriteria());
             story.setDefinitionOfDone(request.getDefinitionOfDone());
-            story.setSimplifiedSummary(simplifiedSummary);
-            story.setImplementationPlan(implementationPlan);
-            story.setApiContracts(apiContracts);
-            story.setTestSuggestions(testSuggestions);
             story.setCopilotPrompt(copilotPrompt);
 
             AnalyzedStory savedStory = analyzedStoryRepository.save(story);
@@ -74,39 +66,19 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
     public void analyzeStoryStreaming(AnalyzeStoryRequest request, SseEmitter emitter) {
         log.info("Streaming analysis for story: {} - {}", request.getJiraKey(), request.getTitle());
 
-        String simplifiedSummary = null;
-        String implementationPlan = null;
-        String apiContracts = null;
-        String testSuggestions = null;
         String copilotPrompt = null;
 
         try {
             // Send start event
             sendSseEvent(emitter, "start", "{\"jiraKey\":" + escapeJson(request.getJiraKey()) + ",\"provider\":" + escapeJson(aiService.getProviderName()) + "}");
 
-            // Generate and stream each section
-            sendSseEvent(emitter, "section-start", "{\"section\":\"simplifiedSummary\",\"label\":\"Simplified Summary\"}");
-            simplifiedSummary = generateSimplifiedSummary(request);
-            sendSseEvent(emitter, "section-complete", "{\"section\":\"simplifiedSummary\",\"content\":" + escapeJson(simplifiedSummary) + "}");
-
-            sendSseEvent(emitter, "section-start", "{\"section\":\"implementationPlan\",\"label\":\"Implementation Plan\"}");
-            implementationPlan = generateImplementationPlan(request);
-            sendSseEvent(emitter, "section-complete", "{\"section\":\"implementationPlan\",\"content\":" + escapeJson(implementationPlan) + "}");
-
-            sendSseEvent(emitter, "section-start", "{\"section\":\"apiContracts\",\"label\":\"API Contracts\"}");
-            apiContracts = generateApiContracts(request);
-            sendSseEvent(emitter, "section-complete", "{\"section\":\"apiContracts\",\"content\":" + escapeJson(apiContracts) + "}");
-
-            sendSseEvent(emitter, "section-start", "{\"section\":\"testSuggestions\",\"label\":\"Test Suggestions\"}");
-            testSuggestions = generateTestSuggestions(request);
-            sendSseEvent(emitter, "section-complete", "{\"section\":\"testSuggestions\",\"content\":" + escapeJson(testSuggestions) + "}");
-
+            // Generate and stream copilot prompt
             sendSseEvent(emitter, "section-start", "{\"section\":\"copilotPrompt\",\"label\":\"GitHub Copilot Prompt\"}");
             copilotPrompt = generateCopilotPrompt(request);
             sendSseEvent(emitter, "section-complete", "{\"section\":\"copilotPrompt\",\"content\":" + escapeJson(copilotPrompt) + "}");
 
             // Save to database
-            AnalyzedStory savedStory = saveAnalyzedStory(request, simplifiedSummary, implementationPlan, apiContracts, testSuggestions, copilotPrompt);
+            AnalyzedStory savedStory = saveAnalyzedStory(request, copilotPrompt);
             AnalyzedStoryResponse response = mapToResponse(savedStory);
 
             // Send final complete event with full response
@@ -155,10 +127,7 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
         return sb.toString();
     }
 
-    private AnalyzedStory saveAnalyzedStory(AnalyzeStoryRequest request,
-                                             String simplifiedSummary, String implementationPlan,
-                                             String apiContracts, String testSuggestions,
-                                             String copilotPrompt) {
+    private AnalyzedStory saveAnalyzedStory(AnalyzeStoryRequest request, String copilotPrompt) {
         Optional<AnalyzedStory> existingStory = analyzedStoryRepository.findByJiraKey(request.getJiraKey());
 
         AnalyzedStory story;
@@ -174,10 +143,6 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
         story.setDescription(request.getDescription());
         story.setAcceptanceCriteria(request.getAcceptanceCriteria());
         story.setDefinitionOfDone(request.getDefinitionOfDone());
-        story.setSimplifiedSummary(simplifiedSummary);
-        story.setImplementationPlan(implementationPlan);
-        story.setApiContracts(apiContracts);
-        story.setTestSuggestions(testSuggestions);
         story.setCopilotPrompt(copilotPrompt);
 
         AnalyzedStory savedStory = analyzedStoryRepository.save(story);
@@ -268,107 +233,6 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
         return callAi(template, request);
     }
 
-    private String generateSimplifiedSummary(AnalyzeStoryRequest request) {
-        String template = """
-                You are a senior software engineer. Rephrase the following Jira story into a clear, concise, \
-                developer-friendly summary that can be understood without any Jira context.
-
-                Title: {title}
-                Description: {description}
-                Acceptance Criteria: {acceptanceCriteria}
-                Definition of Done: {definitionOfDone}
-
-                Provide a simplified summary in 3-5 sentences that captures:
-                1. What needs to be built or changed
-                2. The core business requirement
-                3. Key technical considerations
-
-                Output only the summary, no headers or labels.""";
-
-        return callAi(template, request);
-    }
-
-    private String generateImplementationPlan(AnalyzeStoryRequest request) {
-        String template = """
-                You are a senior software engineer creating a step-by-step implementation plan \
-                for GitHub Copilot to assist with coding.
-
-                Title: {title}
-                Description: {description}
-                Acceptance Criteria: {acceptanceCriteria}
-                Definition of Done: {definitionOfDone}
-
-                Generate a detailed, numbered implementation plan with:
-                1. Small, focused tasks (each should be completable in under 30 minutes)
-                2. File paths and component names where changes are needed
-                3. Specific code patterns or approaches to use
-                4. Dependencies between tasks
-                5. Configuration or environment changes needed
-
-                Format each step as:
-                Step N: [Brief title]
-                - Description: [What to do]
-                - Files: [Which files to create/modify]
-                - Approach: [Technical approach]
-
-                Keep it practical and actionable for a developer using AI-assisted coding.""";
-
-        return callAi(template, request);
-    }
-
-    private String generateApiContracts(AnalyzeStoryRequest request) {
-        String template = """
-                You are a senior API architect. Based on the following Jira story, suggest REST API contracts \
-                that would need to be created or modified.
-
-                Title: {title}
-                Description: {description}
-                Acceptance Criteria: {acceptanceCriteria}
-                Definition of Done: {definitionOfDone}
-
-                For each API endpoint, provide:
-                1. HTTP Method and Path
-                2. Request body (JSON schema with types)
-                3. Response body (JSON schema with types)
-                4. Status codes and their meanings
-                5. Query parameters if applicable
-                6. Authentication requirements
-
-                Format as clear API documentation. If no API changes are needed, explain why \
-                and suggest any internal service contracts instead.""";
-
-        return callAi(template, request);
-    }
-
-    private String generateTestSuggestions(AnalyzeStoryRequest request) {
-        String template = """
-                You are a senior QA engineer and test architect. Based on the following Jira story, \
-                suggest comprehensive test cases.
-
-                Title: {title}
-                Description: {description}
-                Acceptance Criteria: {acceptanceCriteria}
-                Definition of Done: {definitionOfDone}
-
-                Generate test cases organized by type:
-
-                1. **Unit Tests**: Test individual functions/methods
-                   - Test name, input, expected output, assertion
-
-                2. **Integration Tests**: Test component interactions
-                   - Test scenario, setup, execution, verification
-
-                3. **Edge Cases**: Boundary conditions and error scenarios
-                   - Scenario, why it matters, expected behavior
-
-                4. **Acceptance Tests**: Map to acceptance criteria
-                   - Given/When/Then format
-
-                Be specific with test names and use realistic data examples.""";
-
-        return callAi(template, request);
-    }
-
     private String callAi(String template, AnalyzeStoryRequest request) {
         try {
             String prompt = template
@@ -398,10 +262,6 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
                 .description(story.getDescription())
                 .acceptanceCriteria(story.getAcceptanceCriteria())
                 .definitionOfDone(story.getDefinitionOfDone())
-                .simplifiedSummary(story.getSimplifiedSummary())
-                .implementationPlan(story.getImplementationPlan())
-                .apiContracts(story.getApiContracts())
-                .testSuggestions(story.getTestSuggestions())
                 .copilotPrompt(story.getCopilotPrompt())
                 .createdAt(story.getCreatedAt())
                 .updatedAt(story.getUpdatedAt())

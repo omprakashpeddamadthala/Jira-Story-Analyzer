@@ -7,9 +7,14 @@ import {
   Toolbar,
   Typography,
   CssBaseline,
+  Fade,
 } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
-import { AutoAwesome as LogoIcon } from '@mui/icons-material';
+import {
+  RocketLaunch as LogoIcon,
+  Code as CodeIcon,
+  Favorite as HeartIcon,
+} from '@mui/icons-material';
 import theme from './theme/theme';
 import StoryList from './components/StoryList';
 import StoryForm from './components/StoryForm';
@@ -49,23 +54,79 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <AppBar position="static" elevation={1}>
-          <Toolbar>
-            <LogoIcon sx={{ mr: 1.5 }} />
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700 }}>
+        {/* Professional AppBar */}
+        <AppBar
+          position="static"
+          elevation={0}
+          sx={{
+            background: 'linear-gradient(135deg, #0747A6 0%, #6554C0 50%, #403294 100%)',
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
+          }}
+        >
+          <Toolbar sx={{ py: 0.5 }}>
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: 2,
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mr: 1.5,
+              }}
+            >
+              <LogoIcon sx={{ fontSize: 22 }} />
+            </Box>
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{
+                flexGrow: 1,
+                fontWeight: 800,
+                letterSpacing: '-0.02em',
+                fontSize: '1.15rem',
+              }}
+            >
               Jira Story Analyzer
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.8 }}>
-              AI-Powered Development Assistant
-            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 2,
+                py: 0.5,
+                borderRadius: 2,
+                backgroundColor: 'rgba(255,255,255,0.1)',
+              }}
+            >
+              <CodeIcon sx={{ fontSize: 16, opacity: 0.8 }} />
+              <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                AI-Powered Copilot Prompt Generator
+              </Typography>
+            </Box>
           </Toolbar>
         </AppBar>
 
-        <Container maxWidth="xl" sx={{ mt: 3, mb: 3, flex: 1 }}>
+        {/* Main Content */}
+        <Container
+          maxWidth="xl"
+          sx={{
+            mt: 3,
+            mb: 3,
+            flex: 1,
+            animation: 'fadeIn 0.6s ease-out',
+            '@keyframes fadeIn': {
+              from: { opacity: 0, transform: 'translateY(8px)' },
+              to: { opacity: 1, transform: 'translateY(0)' },
+            },
+          }}
+        >
           <Grid container spacing={3}>
             {/* Left Panel - Story List */}
             <Grid size={{ xs: 12, md: 3 }}>
-              <Box sx={{ height: 'calc(100vh - 150px)' }}>
+              <Box sx={{ height: 'calc(100vh - 180px)' }}>
                 <StoryList
                   onSelectStory={handleSelectStory}
                   selectedStoryKey={selectedStory?.key ?? null}
@@ -93,14 +154,72 @@ function App() {
             {/* Full Width - Analysis Results */}
             {showResults && (
               <Grid size={{ xs: 12 }}>
-                <AnalysisResult
-                  result={analysisResult}
-                  streamingState={streamingState ?? undefined}
-                />
+                <Fade in timeout={600}>
+                  <Box>
+                    <AnalysisResult
+                      result={analysisResult}
+                      streamingState={streamingState ?? undefined}
+                    />
+                  </Box>
+                </Fade>
               </Grid>
             )}
           </Grid>
         </Container>
+
+        {/* Footer */}
+        <Box
+          component="footer"
+          sx={{
+            py: 2.5,
+            px: 3,
+            background: 'linear-gradient(135deg, #0747A6 0%, #6554C0 50%, #403294 100%)',
+            color: 'white',
+            textAlign: 'center',
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+          }}
+        >
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            gap={0.8}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 500, opacity: 0.9 }}>
+              Crafted with
+            </Typography>
+            <HeartIcon
+              sx={{
+                fontSize: 16,
+                color: '#FF5630',
+                animation: 'heartbeat 1.5s ease-in-out infinite',
+                '@keyframes heartbeat': {
+                  '0%, 100%': { transform: 'scale(1)' },
+                  '50%': { transform: 'scale(1.2)' },
+                },
+              }}
+            />
+            <Typography variant="body2" sx={{ fontWeight: 500, opacity: 0.9 }}>
+              by
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 800,
+                letterSpacing: '0.05em',
+                background: 'linear-gradient(90deg, #4C9AFF, #998DD9, #FF5630)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Developer Thor Team
+            </Typography>
+          </Box>
+          <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mt: 0.5 }}>
+            Jira Story Analyzer &bull; AI-Powered Development Assistant
+          </Typography>
+        </Box>
       </Box>
     </ThemeProvider>
   );

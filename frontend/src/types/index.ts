@@ -23,10 +23,6 @@ export interface AnalyzedStory {
   description: string;
   acceptanceCriteria: string;
   definitionOfDone: string;
-  simplifiedSummary: string;
-  implementationPlan: string;
-  apiContracts: string;
-  testSuggestions: string;
   copilotPrompt: string;
   createdAt: string;
   updatedAt: string;
@@ -39,7 +35,7 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
-export type AnalysisSectionKey = 'simplifiedSummary' | 'implementationPlan' | 'apiContracts' | 'testSuggestions' | 'copilotPrompt';
+export type AnalysisSectionKey = 'copilotPrompt';
 
 export interface StreamingState {
   isStreaming: boolean;

@@ -22,10 +22,6 @@ public class AnalyzedStoryResponse {
     private String description;
     private String acceptanceCriteria;
     private String definitionOfDone;
-    private String simplifiedSummary;
-    private String implementationPlan;
-    private String apiContracts;
-    private String testSuggestions;
     private String copilotPrompt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
