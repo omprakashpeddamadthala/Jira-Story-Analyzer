@@ -37,6 +37,7 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
             String implementationPlan = generateImplementationPlan(request);
             String apiContracts = generateApiContracts(request);
             String testSuggestions = generateTestSuggestions(request);
+            String copilotPrompt = generateCopilotPrompt(request);
 
             Optional<AnalyzedStory> existingStory = analyzedStoryRepository.findByJiraKey(request.getJiraKey());
 
@@ -57,6 +58,7 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
             story.setImplementationPlan(implementationPlan);
             story.setApiContracts(apiContracts);
             story.setTestSuggestions(testSuggestions);
+            story.setCopilotPrompt(copilotPrompt);
 
             AnalyzedStory savedStory = analyzedStoryRepository.save(story);
             log.info("Story analysis saved with ID: {}", savedStory.getId());
@@ -76,6 +78,7 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
         String implementationPlan = null;
         String apiContracts = null;
         String testSuggestions = null;
+        String copilotPrompt = null;
 
         try {
             // Send start event
@@ -98,8 +101,12 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
             testSuggestions = generateTestSuggestions(request);
             sendSseEvent(emitter, "section-complete", "{\"section\":\"testSuggestions\",\"content\":" + escapeJson(testSuggestions) + "}");
 
+            sendSseEvent(emitter, "section-start", "{\"section\":\"copilotPrompt\",\"label\":\"GitHub Copilot Prompt\"}");
+            copilotPrompt = generateCopilotPrompt(request);
+            sendSseEvent(emitter, "section-complete", "{\"section\":\"copilotPrompt\",\"content\":" + escapeJson(copilotPrompt) + "}");
+
             // Save to database
-            AnalyzedStory savedStory = saveAnalyzedStory(request, simplifiedSummary, implementationPlan, apiContracts, testSuggestions);
+            AnalyzedStory savedStory = saveAnalyzedStory(request, simplifiedSummary, implementationPlan, apiContracts, testSuggestions, copilotPrompt);
             AnalyzedStoryResponse response = mapToResponse(savedStory);
 
             // Send final complete event with full response
@@ -150,7 +157,8 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
 
     private AnalyzedStory saveAnalyzedStory(AnalyzeStoryRequest request,
                                              String simplifiedSummary, String implementationPlan,
-                                             String apiContracts, String testSuggestions) {
+                                             String apiContracts, String testSuggestions,
+                                             String copilotPrompt) {
         Optional<AnalyzedStory> existingStory = analyzedStoryRepository.findByJiraKey(request.getJiraKey());
 
         AnalyzedStory story;
@@ -170,10 +178,94 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
         story.setImplementationPlan(implementationPlan);
         story.setApiContracts(apiContracts);
         story.setTestSuggestions(testSuggestions);
+        story.setCopilotPrompt(copilotPrompt);
 
         AnalyzedStory savedStory = analyzedStoryRepository.save(story);
         log.info("Story analysis saved with ID: {}", savedStory.getId());
         return savedStory;
+    }
+
+    private String generateCopilotPrompt(AnalyzeStoryRequest request) {
+        String template = """
+                You are an expert AI software engineer.
+
+                Your task is to analyze the complete codebase and generate an implementation prompt \
+                that can be directly used with GitHub Copilot.
+
+                Follow the steps below carefully:
+
+                --------------------------------------
+                STEP 1: INPUT FROM JIRA
+                --------------------------------------
+                You will receive:
+                - Title: {title}
+                - Description: {description}
+                - Acceptance Criteria: {acceptanceCriteria}
+                - Definition of Done: {definitionOfDone}
+
+                --------------------------------------
+                STEP 2: CODEBASE ANALYSIS
+                --------------------------------------
+                - Analyze entire codebase
+                - Identify modules, services, controllers, APIs, DB
+                - Detect reusable components
+                - Identify change points
+
+                --------------------------------------
+                STEP 3: PROMPT GENERATION
+                --------------------------------------
+                Generate a detailed Copilot prompt:
+                - Context-aware
+                - File-level guidance
+                - Methods/classes to modify
+                - Validations, edge cases
+                - Follow coding standards
+
+                --------------------------------------
+                STEP 4: OUTPUT FORMAT
+                --------------------------------------
+                Return ONLY ONE markdown response following the STRICT template below.
+                Do NOT include any extra text outside the markdown block.
+
+                --------------------------------------
+                OUTPUT TEMPLATE (STRICT)
+                --------------------------------------
+
+                # GitHub Copilot Implementation Prompt
+
+                ## Feature Title
+                <Insert Title>
+
+                ## Description
+                <Insert Description>
+
+                ## Acceptance Criteria
+                - <criteria>
+
+                ## Definition of Done
+                - <DoD>
+
+                ## Codebase Context
+                - Relevant Modules:
+                - Services:
+                - Controllers:
+                - Database Tables:
+                - APIs:
+
+                ## Implementation Plan
+                1. <Step>
+
+                ## Detailed Instructions for Copilot
+                - Modify/Create:
+                - Add validations:
+                - Handle edge cases:
+                - Follow patterns:
+
+                ## Expected Outcome
+                <Final result>
+                """;
+
+        return callAi(template, request);
     }
 
     private String generateSimplifiedSummary(AnalyzeStoryRequest request) {
@@ -310,6 +402,7 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
                 .implementationPlan(story.getImplementationPlan())
                 .apiContracts(story.getApiContracts())
                 .testSuggestions(story.getTestSuggestions())
+                .copilotPrompt(story.getCopilotPrompt())
                 .createdAt(story.getCreatedAt())
                 .updatedAt(story.getUpdatedAt())
                 .build();

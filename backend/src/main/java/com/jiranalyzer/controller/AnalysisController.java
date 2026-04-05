@@ -44,6 +44,15 @@ public class AnalysisController {
                 .body(ApiResponse.success(response, "Story analyzed successfully"));
     }
 
+    @PostMapping("/analyze-story")
+    public ResponseEntity<ApiResponse<AnalyzedStoryResponse>> analyzeStoryAlias(
+            @Valid @RequestBody AnalyzeStoryRequest request) {
+        log.info("POST /api/v1/analysis/analyze-story - Analyzing story: {}", request.getJiraKey());
+        AnalyzedStoryResponse response = aiAnalysisService.analyzeStory(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, "Story analyzed successfully"));
+    }
+
     @PostMapping(value = "/analyze/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter analyzeStoryStreaming(@Valid @RequestBody AnalyzeStoryRequest request) {
         log.info("POST /api/v1/analysis/analyze/stream - Streaming analysis for story: {}", request.getJiraKey());
