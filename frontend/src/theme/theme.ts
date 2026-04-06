@@ -1,105 +1,116 @@
 import { createTheme, alpha } from '@mui/material/styles';
 
-// Refined dark color palette with improved contrast and depth
+// Professional light color palette - clean, modern with indigo/violet accents
 const colors = {
-  // Core surfaces - deeper, richer blues
-  surface: '#0a0e1a',
-  surfaceContainerLowest: '#060a14',
-  surfaceContainerLow: '#0f1524',
-  surfaceContainer: '#141b2e',
-  surfaceContainerHigh: '#1c2438',
-  surfaceContainerHighest: '#252d42',
-  surfaceBright: '#2a3350',
-  surfaceVariant: '#1e2740',
+  // Core surfaces
+  surface: '#fafbfd',
+  surfaceContainerLowest: '#ffffff',
+  surfaceContainerLow: '#f4f6fa',
+  surfaceContainer: '#eef1f7',
+  surfaceContainerHigh: '#e4e8f0',
+  surfaceContainerHighest: '#d8dde8',
+  surfaceBright: '#ffffff',
+  surfaceVariant: '#e8ecf4',
 
-  // Text colors - better contrast ratios
-  onSurface: '#e8ecf4',
-  onSurfaceVariant: '#9ba4b8',
+  // Text colors
+  onSurface: '#1a1d2e',
+  onSurfaceVariant: '#5f6577',
 
-  // Primary - vibrant blue accent
-  primary: '#6ea8fe',
-  primaryContainer: '#1a56db',
-  onPrimary: '#001a40',
-  onPrimaryContainer: '#cddcff',
-  primaryFixed: '#3b82f6',
+  // Primary - indigo/violet
+  primary: '#5C6BC0',
+  primaryContainer: '#C5CAE9',
+  onPrimary: '#ffffff',
+  onPrimaryContainer: '#1A237E',
+  primaryFixed: '#3F51B5',
+  primaryDark: '#3949AB',
 
-  // Secondary - subtle cool gray-blue
-  secondary: '#94a3b8',
-  secondaryContainer: '#334155',
-  onSecondary: '#1e293b',
-  onSecondaryContainer: '#cbd5e1',
+  // Secondary - teal
+  secondary: '#26A69A',
+  secondaryContainer: '#B2DFDB',
+  onSecondary: '#ffffff',
+  onSecondaryContainer: '#004D40',
 
-  // Tertiary - warm amber accent
-  tertiary: '#fbbf24',
-  tertiaryContainer: '#92400e',
-  onTertiary: '#451a03',
-  onTertiaryContainer: '#fde68a',
+  // Tertiary - amber
+  tertiary: '#FF8F00',
+  tertiaryContainer: '#FFE082',
+  onTertiary: '#ffffff',
+  onTertiaryContainer: '#E65100',
 
-  // Success - emerald
-  success: '#34d399',
-  successContainer: '#065f46',
+  // Success - green
+  success: '#43A047',
+  successContainer: '#C8E6C9',
 
-  // Error
-  error: '#f87171',
-  errorContainer: '#7f1d1d',
+  // Error - red
+  error: '#E53935',
+  errorContainer: '#FFCDD2',
+
+  // Info - light blue
+  info: '#039BE5',
+  infoContainer: '#B3E5FC',
 
   // Borders and outlines
-  outline: '#475569',
-  outlineVariant: '#334155',
+  outline: '#c2c7d4',
+  outlineVariant: '#dce0ea',
 
   // Inverse
-  inverseSurface: '#e2e8f0',
-  inverseOnSurface: '#1e293b',
-  inversePrimary: '#1d4ed8',
+  inverseSurface: '#2d3142',
+  inverseOnSurface: '#f0f2f8',
+  inversePrimary: '#9fa8da',
 };
 
 // Shared gradient definitions
 const gradients = {
-  primary: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryFixed} 100%)`,
-  surface: `linear-gradient(180deg, ${colors.surfaceContainer} 0%, ${colors.surfaceContainerLow} 100%)`,
-  glow: `radial-gradient(ellipse at 50% 0%, ${alpha(colors.primary, 0.08)} 0%, transparent 60%)`,
-  cardHover: `linear-gradient(135deg, ${alpha(colors.primary, 0.04)} 0%, transparent 100%)`,
+  primary: `linear-gradient(135deg, ${colors.primary} 0%, #7E57C2 100%)`,
+  hero: `linear-gradient(135deg, ${colors.primary} 0%, #7E57C2 50%, #AB47BC 100%)`,
+  surface: `linear-gradient(180deg, ${colors.surfaceContainerLow} 0%, ${colors.surface} 100%)`,
+  glow: `radial-gradient(ellipse at 50% 0%, ${alpha(colors.primary, 0.06)} 0%, transparent 60%)`,
+  cardHover: `linear-gradient(135deg, ${alpha(colors.primary, 0.03)} 0%, transparent 100%)`,
+  sidebar: `linear-gradient(180deg, ${colors.inverseSurface} 0%, #1a1f35 100%)`,
 };
 
 const theme = createTheme({
   palette: {
-    mode: 'dark',
+    mode: 'light',
     primary: {
       main: colors.primary,
-      light: colors.onPrimaryContainer,
-      dark: colors.primaryContainer,
+      light: colors.primaryContainer,
+      dark: colors.primaryDark,
       contrastText: colors.onPrimary,
     },
     secondary: {
       main: colors.secondary,
-      light: colors.onSecondaryContainer,
-      dark: colors.secondaryContainer,
+      light: colors.secondaryContainer,
+      dark: '#00897B',
       contrastText: colors.onSecondary,
     },
     error: {
       main: colors.error,
-      dark: colors.errorContainer,
+      light: colors.errorContainer,
     },
     success: {
       main: colors.success,
-      dark: colors.successContainer,
+      light: colors.successContainer,
     },
     warning: {
       main: colors.tertiary,
-      dark: colors.tertiaryContainer,
+      light: colors.tertiaryContainer,
+    },
+    info: {
+      main: colors.info,
+      light: colors.infoContainer,
     },
     background: {
       default: colors.surface,
-      paper: colors.surfaceContainer,
+      paper: colors.surfaceContainerLowest,
     },
     text: {
       primary: colors.onSurface,
       secondary: colors.onSurfaceVariant,
     },
-    divider: alpha(colors.outlineVariant, 0.4),
+    divider: alpha(colors.outlineVariant, 0.7),
     action: {
-      hover: alpha(colors.primary, 0.06),
-      selected: alpha(colors.primary, 0.1),
+      hover: alpha(colors.primary, 0.04),
+      selected: alpha(colors.primary, 0.08),
       focus: alpha(colors.primary, 0.12),
     },
   },
@@ -147,11 +158,11 @@ const theme = createTheme({
           background: 'transparent',
         },
         '::-webkit-scrollbar-thumb': {
-          background: alpha(colors.outlineVariant, 0.5),
+          background: alpha(colors.outline, 0.4),
           borderRadius: 3,
         },
         '::selection': {
-          backgroundColor: alpha(colors.primary, 0.3),
+          backgroundColor: alpha(colors.primary, 0.15),
           color: colors.onSurface,
         },
       },
@@ -159,15 +170,15 @@ const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundColor: colors.surfaceContainer,
+          backgroundColor: colors.surfaceContainerLowest,
           backgroundImage: 'none',
           borderRadius: 16,
-          border: `1px solid ${alpha(colors.outlineVariant, 0.2)}`,
-          boxShadow: `0 2px 12px ${alpha('#000', 0.2)}`,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          border: `1px solid ${alpha(colors.outlineVariant, 0.6)}`,
+          boxShadow: `0 1px 3px ${alpha('#000', 0.04)}, 0 1px 2px ${alpha('#000', 0.02)}`,
+          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
           '&:hover': {
-            boxShadow: `0 8px 32px ${alpha('#000', 0.28)}`,
-            borderColor: alpha(colors.outlineVariant, 0.3),
+            boxShadow: `0 4px 12px ${alpha('#000', 0.08)}, 0 2px 4px ${alpha('#000', 0.04)}`,
+            borderColor: alpha(colors.outline, 0.5),
           },
         },
       },
@@ -186,9 +197,9 @@ const theme = createTheme({
           },
         },
         contained: {
-          boxShadow: 'none',
+          boxShadow: `0 1px 3px ${alpha(colors.primary, 0.2)}`,
           '&:hover': {
-            boxShadow: `0 4px 16px ${alpha(colors.primaryContainer, 0.4)}`,
+            boxShadow: `0 4px 12px ${alpha(colors.primary, 0.3)}`,
             transform: 'translateY(-1px)',
           },
           '&:active': {
@@ -196,10 +207,10 @@ const theme = createTheme({
           },
         },
         outlined: {
-          borderColor: alpha(colors.outlineVariant, 0.5),
+          borderColor: alpha(colors.outline, 0.6),
           '&:hover': {
             borderColor: colors.primary,
-            backgroundColor: alpha(colors.primary, 0.06),
+            backgroundColor: alpha(colors.primary, 0.04),
           },
         },
       },
@@ -209,18 +220,18 @@ const theme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             borderRadius: 10,
-            backgroundColor: alpha(colors.surfaceContainerLow, 0.6),
+            backgroundColor: colors.surfaceContainerLowest,
             transition: 'all 0.2s ease',
             '& fieldset': {
-              borderColor: alpha(colors.outlineVariant, 0.3),
+              borderColor: alpha(colors.outline, 0.4),
               transition: 'border-color 0.2s ease',
             },
             '&:hover fieldset': {
-              borderColor: alpha(colors.outline, 0.6),
+              borderColor: alpha(colors.outline, 0.7),
             },
             '&.Mui-focused': {
-              backgroundColor: alpha(colors.surfaceContainerLow, 0.8),
-              boxShadow: `0 0 0 3px ${alpha(colors.primary, 0.15)}`,
+              backgroundColor: colors.surfaceContainerLowest,
+              boxShadow: `0 0 0 3px ${alpha(colors.primary, 0.1)}`,
               '& fieldset': {
                 borderColor: colors.primary,
                 borderWidth: 1,
@@ -246,7 +257,7 @@ const theme = createTheme({
           height: 26,
         },
         outlined: {
-          borderColor: alpha(colors.outlineVariant, 0.4),
+          borderColor: alpha(colors.outline, 0.4),
         },
       },
     },
@@ -257,13 +268,13 @@ const theme = createTheme({
           margin: '2px 8px',
           transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           '&.Mui-selected': {
-            backgroundColor: alpha(colors.primary, 0.1),
+            backgroundColor: alpha(colors.primary, 0.08),
             '&:hover': {
-              backgroundColor: alpha(colors.primary, 0.14),
+              backgroundColor: alpha(colors.primary, 0.12),
             },
           },
           '&:hover': {
-            backgroundColor: alpha(colors.primary, 0.05),
+            backgroundColor: alpha(colors.primary, 0.04),
           },
         },
       },
@@ -271,7 +282,7 @@ const theme = createTheme({
     MuiDivider: {
       styleOverrides: {
         root: {
-          borderColor: alpha(colors.outlineVariant, 0.2),
+          borderColor: alpha(colors.outlineVariant, 0.6),
         },
       },
     },
@@ -282,13 +293,13 @@ const theme = createTheme({
           border: '1px solid',
         },
         standardError: {
-          backgroundColor: alpha(colors.error, 0.08),
-          borderColor: alpha(colors.error, 0.2),
+          backgroundColor: alpha(colors.error, 0.06),
+          borderColor: alpha(colors.error, 0.15),
           color: colors.error,
         },
         standardSuccess: {
-          backgroundColor: alpha(colors.success, 0.08),
-          borderColor: alpha(colors.success, 0.2),
+          backgroundColor: alpha(colors.success, 0.06),
+          borderColor: alpha(colors.success, 0.15),
           color: colors.success,
         },
       },
@@ -303,12 +314,12 @@ const theme = createTheme({
     MuiTooltip: {
       styleOverrides: {
         tooltip: {
-          backgroundColor: colors.surfaceContainerHighest,
-          border: `1px solid ${alpha(colors.outlineVariant, 0.3)}`,
+          backgroundColor: colors.inverseSurface,
+          color: colors.inverseOnSurface,
           borderRadius: 8,
           fontSize: '0.75rem',
           fontWeight: 500,
-          boxShadow: `0 4px 16px ${alpha('#000', 0.3)}`,
+          boxShadow: `0 4px 16px ${alpha('#000', 0.15)}`,
         },
       },
     },
@@ -318,7 +329,7 @@ const theme = createTheme({
           borderRadius: 10,
           transition: 'all 0.2s ease',
           '&:hover': {
-            backgroundColor: alpha(colors.primary, 0.08),
+            backgroundColor: alpha(colors.primary, 0.06),
           },
         },
       },
