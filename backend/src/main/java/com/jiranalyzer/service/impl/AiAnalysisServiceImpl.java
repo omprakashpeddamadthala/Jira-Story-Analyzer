@@ -7,6 +7,7 @@ import com.jiranalyzer.exception.AiAnalysisException;
 import com.jiranalyzer.repository.AnalyzedStoryRepository;
 import com.jiranalyzer.service.AIService;
 import com.jiranalyzer.service.AiAnalysisService;
+import com.jiranalyzer.service.PromptSettingsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -21,10 +22,12 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
 
     private final AIService aiService;
     private final AnalyzedStoryRepository analyzedStoryRepository;
+    private final PromptSettingsService promptSettingsService;
 
-    public AiAnalysisServiceImpl(AIService aiService, AnalyzedStoryRepository analyzedStoryRepository) {
+    public AiAnalysisServiceImpl(AIService aiService, AnalyzedStoryRepository analyzedStoryRepository, PromptSettingsService promptSettingsService) {
         this.aiService = aiService;
         this.analyzedStoryRepository = analyzedStoryRepository;
+        this.promptSettingsService = promptSettingsService;
         log.info("AiAnalysisService initialized with provider: {}", aiService.getProviderName());
     }
 
@@ -151,85 +154,7 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
     }
 
     private String generateCopilotPrompt(AnalyzeStoryRequest request) {
-        String template = """
-                You are an expert AI software engineer.
-
-                Your task is to analyze the complete codebase and generate an implementation prompt \
-                that can be directly used with GitHub Copilot.
-
-                Follow the steps below carefully:
-
-                --------------------------------------
-                STEP 1: INPUT FROM JIRA
-                --------------------------------------
-                You will receive:
-                - Title: {title}
-                - Description: {description}
-                - Acceptance Criteria: {acceptanceCriteria}
-                - Definition of Done: {definitionOfDone}
-
-                --------------------------------------
-                STEP 2: CODEBASE ANALYSIS
-                --------------------------------------
-                - Analyze entire codebase
-                - Identify modules, services, controllers, APIs, DB
-                - Detect reusable components
-                - Identify change points
-
-                --------------------------------------
-                STEP 3: PROMPT GENERATION
-                --------------------------------------
-                Generate a detailed Copilot prompt:
-                - Context-aware
-                - File-level guidance
-                - Methods/classes to modify
-                - Validations, edge cases
-                - Follow coding standards
-
-                --------------------------------------
-                STEP 4: OUTPUT FORMAT
-                --------------------------------------
-                Return ONLY ONE markdown response following the STRICT template below.
-                Do NOT include any extra text outside the markdown block.
-
-                --------------------------------------
-                OUTPUT TEMPLATE (STRICT)
-                --------------------------------------
-
-                # GitHub Copilot Implementation Prompt
-
-                ## Feature Title
-                <Insert Title>
-
-                ## Description
-                <Insert Description>
-
-                ## Acceptance Criteria
-                - <criteria>
-
-                ## Definition of Done
-                - <DoD>
-
-                ## Codebase Context
-                - Relevant Modules:
-                - Services:
-                - Controllers:
-                - Database Tables:
-                - APIs:
-
-                ## Implementation Plan
-                1. <Step>
-
-                ## Detailed Instructions for Copilot
-                - Modify/Create:
-                - Add validations:
-                - Handle edge cases:
-                - Follow patterns:
-
-                ## Expected Outcome
-                <Final result>
-                """;
-
+        String template = promptSettingsService.getCopilotTemplate();
         return callAi(template, request);
     }
 

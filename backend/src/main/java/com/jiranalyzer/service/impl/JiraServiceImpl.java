@@ -2,7 +2,7 @@ package com.jiranalyzer.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jiranalyzer.config.JiraConfig;
+import com.jiranalyzer.service.JiraSettingsService;
 import com.jiranalyzer.dto.response.JiraStoryResponse;
 import com.jiranalyzer.exception.JiraApiException;
 import com.jiranalyzer.service.JiraService;
@@ -13,8 +13,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -31,29 +29,31 @@ import java.util.Map;
 public class JiraServiceImpl implements JiraService {
 
     private final RestTemplate restTemplate;
-    private final JiraConfig jiraConfig;
+    private final JiraSettingsService settingsService;
     private final ObjectMapper objectMapper;
 
-    public JiraServiceImpl(RestTemplate restTemplate, JiraConfig jiraConfig, ObjectMapper objectMapper) {
+    public JiraServiceImpl(RestTemplate restTemplate, JiraSettingsService settingsService, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
-        this.jiraConfig = jiraConfig;
+        this.settingsService = settingsService;
         this.objectMapper = objectMapper;
     }
 
     @Override
     public List<JiraStoryResponse> fetchAssignedStories() {
         log.info("Fetching assigned Jira stories");
-        String baseUrl = normalizeBaseUrl(jiraConfig.getBaseUrl());
+        String baseUrl = normalizeBaseUrl(settingsService.getEffectiveBaseUrl());
         log.debug("Jira base URL: {}", baseUrl);
-        log.debug("Jira email: {}", jiraConfig.getEmail());
-        log.debug("API token length: {}", jiraConfig.getApiToken() != null ? jiraConfig.getApiToken().length() : 0);
+        log.debug("Jira email: {}", settingsService.getEffectiveEmail());
+        
+        String token = settingsService.getEffectiveApiToken();
+        log.debug("API token length: {}", token != null ? token.length() : 0);
         
         // First get current user info to get accountId
         String myselfUrl = baseUrl + "/rest/api/3/myself";
         log.debug("Myself URL: {}", myselfUrl);
         String accountId;
         try {
-            HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders());
+            HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders(settingsService.getEffectiveEmail(), settingsService.getEffectiveApiToken()));
             ResponseEntity<String> response = restTemplate.exchange(myselfUrl, HttpMethod.GET, entity, String.class);
             JsonNode myself = objectMapper.readTree(response.getBody());
             accountId = myself.get("accountId").asText();
@@ -67,10 +67,10 @@ public class JiraServiceImpl implements JiraService {
         String jql = "assignee = '" + accountId + "' AND project = 'SCRUM' AND statusCategory != 3";
         log.info("JQL query: {}", jql);
         
-        String url = jiraConfig.getBaseUrl() + "/rest/api/3/search/jql";
+        String url = settingsService.getEffectiveBaseUrl() + "/rest/api/3/search/jql";
 
         try {
-            HttpHeaders headers = createAuthHeaders();
+            HttpHeaders headers = createAuthHeaders(settingsService.getEffectiveEmail(), settingsService.getEffectiveApiToken());
             headers.setContentType(MediaType.APPLICATION_JSON);
             
             Map<String, Object> body = new HashMap<>();
@@ -92,12 +92,12 @@ public class JiraServiceImpl implements JiraService {
     @Override
     public JiraStoryResponse fetchStoryByKey(String jiraKey) {
         log.info("Fetching Jira story by key: {}", jiraKey);
-        String baseUrl = normalizeBaseUrl(jiraConfig.getBaseUrl());
+        String baseUrl = normalizeBaseUrl(settingsService.getEffectiveBaseUrl());
         String url = baseUrl + "/rest/api/3/issue/" + jiraKey
                 + "?fields=summary,description,status,priority,assignee,issuetype";
 
         try {
-            HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders());
+            HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders(settingsService.getEffectiveEmail(), settingsService.getEffectiveApiToken()));
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
             return parseSingleIssue(objectMapper.readTree(response.getBody()));
@@ -110,13 +110,67 @@ public class JiraServiceImpl implements JiraService {
         }
     }
 
-    private HttpHeaders createAuthHeaders() {
+    @Override
+    public Map<String, Object> testConnection(String testBaseUrl, String testEmail, String testApiToken) {
+        log.info("Testing Jira connection. Provided baseUrl: '{}', email: '{}'. Provided token length: {}", 
+                testBaseUrl, testEmail, testApiToken != null ? testApiToken.length() : "null");
+        
+        Map<String, Object> result = new HashMap<>();
+        try {
+            String baseUrl = (testBaseUrl != null && !testBaseUrl.isBlank()) 
+                    ? normalizeBaseUrl(testBaseUrl) 
+                    : normalizeBaseUrl(settingsService.getEffectiveBaseUrl());
+            String email = (testEmail != null && !testEmail.isBlank()) 
+                    ? testEmail 
+                    : settingsService.getEffectiveEmail();
+            String token = (testApiToken != null && !testApiToken.isBlank()) 
+                    ? testApiToken 
+                    : settingsService.getEffectiveApiToken();
+
+            log.info("Effective credentials for test -> baseUrl: '{}', email: '{}', token length: {}, token startsWith: '{}', token endsWith: '{}'", 
+                baseUrl, email, token != null ? token.length() : "null", 
+                token != null && token.length() > 3 ? token.substring(0, 3) : "NA",
+                token != null && token.length() > 3 ? token.substring(token.length() - 3) : "NA");
+
+            if (baseUrl == null || baseUrl.isBlank()) {
+                result.put("success", false);
+                result.put("error", "Jira base URL is missing. Please configure it.");
+                return result;
+            }
+            if (email == null || email.isBlank() || token == null || token.isBlank()) {
+                result.put("success", false);
+                result.put("error", "Jira email or API token is missing. Please configure them.");
+                return result;
+            }
+            log.info("Testing connection to: {}", baseUrl);
+            
+            String myselfUrl = baseUrl + "/rest/api/3/myself";
+            HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders(email, token));
+            ResponseEntity<String> response = restTemplate.exchange(myselfUrl, HttpMethod.GET, entity, String.class);
+            JsonNode myself = objectMapper.readTree(response.getBody());
+            result.put("success", true);
+            result.put("displayName", getTextValue(myself, "displayName"));
+            result.put("email", getTextValue(myself, "emailAddress"));
+            log.info("Jira connection test successful for user: {}", result.get("displayName"));
+        } catch (RestClientException ex) {
+            log.warn("Jira connection test failed (REST error): {}", ex.getMessage());
+            result.put("success", false);
+            result.put("error", "Invalid credentials or URL unreachable: " + ex.getMessage());
+        } catch (Exception ex) {
+            log.warn("Jira connection test failed: {}", ex.getMessage());
+            result.put("success", false);
+            result.put("error", ex.getMessage());
+        }
+        return result;
+    }
+
+    private HttpHeaders createAuthHeaders(String email, String apiToken) {
         HttpHeaders headers = new HttpHeaders();
-        String auth = jiraConfig.getEmail() + ":" + jiraConfig.getApiToken();
+        String auth = email + ":" + apiToken;
         String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
         headers.set("Authorization", "Basic " + encodedAuth);
         headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-        log.debug("Authorization header length: {}, email used: {}", encodedAuth.length(), jiraConfig.getEmail());
+        log.debug("Authorization header length: {}, email used: {}", encodedAuth.length(), email);
         return headers;
     }
 

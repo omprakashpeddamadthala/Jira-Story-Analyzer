@@ -30,12 +30,16 @@ class AiAnalysisServiceImplTest {
     @Mock
     private AnalyzedStoryRepository analyzedStoryRepository;
 
+    @Mock
+    private com.jiranalyzer.service.PromptSettingsService promptSettingsService;
+
     private AiAnalysisServiceImpl aiAnalysisService;
 
     @BeforeEach
     void setUp() {
         when(aiService.getProviderName()).thenReturn("openai");
-        aiAnalysisService = new AiAnalysisServiceImpl(aiService, analyzedStoryRepository);
+        when(promptSettingsService.getCopilotTemplate()).thenReturn("Test Template");
+        aiAnalysisService = new AiAnalysisServiceImpl(aiService, analyzedStoryRepository, promptSettingsService);
     }
 
     @Test

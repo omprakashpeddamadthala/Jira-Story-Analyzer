@@ -53,3 +53,32 @@ export interface StreamingCallbacks {
   onComplete?: (data: { id: string; jiraKey: string; createdAt: string; updatedAt: string }) => void;
   onError?: (message: string) => void;
 }
+
+export interface JiraConfigRequest {
+  baseUrl: string;
+  email: string;
+  /** Blank = keep existing token */
+  apiToken?: string;
+}
+
+export interface JiraConfigResponse {
+  baseUrl: string;
+  email: string;
+  apiTokenMasked: string;
+  tokenConfigured: boolean;
+}
+
+export interface ConnectionTestResult {
+  success: boolean;
+  displayName?: string;
+  email?: string;
+  error?: string;
+}
+
+export interface PromptConfigRequest {
+  copilotTemplate: string;
+}
+
+export interface PromptConfigResponse {
+  copilotTemplate: string;
+}
