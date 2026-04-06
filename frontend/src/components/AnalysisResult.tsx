@@ -107,7 +107,7 @@ const markdownStyles = {
     border: `1px solid ${alpha(colors.primary, 0.1)}`,
   },
   '& pre': {
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.surfaceContainerLow,
     color: colors.onSurface,
     borderRadius: '12px',
     p: 2.5,
@@ -147,7 +147,7 @@ const markdownStyles = {
     my: 2,
     color: colors.onSurfaceVariant,
     fontStyle: 'italic',
-    backgroundColor: alpha(colors.tertiaryContainer, 0.08),
+    backgroundColor: alpha(colors.tertiaryContainer, 0.15),
     borderRadius: '0 10px 10px 0',
     py: 1,
     pr: 2,
