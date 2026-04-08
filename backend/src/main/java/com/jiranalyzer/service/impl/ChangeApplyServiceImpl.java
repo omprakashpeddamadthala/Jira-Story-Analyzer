@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -298,6 +299,17 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
             }
 
             try {
+                // If the file doesn't exist at the given path, try to find it by name
+                if (!Files.exists(filePath) && !"create".equalsIgnoreCase(
+                        entry.getValue().get(0).getAction())) {
+                    Path resolved = findFileByName(repoRoot, filePath.getFileName().toString());
+                    if (resolved != null) {
+                        log.info("Resolved '{}' to '{}' via filename search", relPath, repoRoot.relativize(resolved));
+                        filePath = resolved;
+                        relPath = repoRoot.relativize(resolved).toString().replace('\\', '/');
+                    }
+                }
+
                 // Capture original content once before any modifications
                 String originalContent = Files.exists(filePath)
                         ? Files.readString(filePath, StandardCharsets.UTF_8) : "";
@@ -322,7 +334,7 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                         }
                         default -> { // "modify"
                             if (!Files.exists(filePath)) {
-                                log.warn("File not found for modify: {}", filePath);
+                                log.warn("File not found for modify (even after search): {}", filePath);
                                 continue;
                             }
                             String currentContent = Files.readString(filePath, StandardCharsets.UTF_8);
@@ -362,6 +374,30 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
             }
         }
         return anyApplied;
+    }
+
+    /**
+     * Search for a file by name within the repo directory tree.
+     * Returns the first match or null if not found.
+     */
+    private Path findFileByName(Path repoRoot, String fileName) {
+        try (Stream<Path> walk = Files.walk(repoRoot, 8)) {
+            return walk
+                    .filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().equals(fileName))
+                    .filter(p -> {
+                        // Skip ignored directories
+                        String rel = repoRoot.relativize(p).toString();
+                        return !rel.contains(".git") && !rel.contains("node_modules")
+                                && !rel.contains("target" + java.io.File.separator + "classes")
+                                && !rel.contains("build" + java.io.File.separator + "classes");
+                    })
+                    .findFirst()
+                    .orElse(null);
+        } catch (IOException ex) {
+            log.warn("File search failed for '{}': {}", fileName, ex.getMessage());
+            return null;
+        }
     }
 
     /**

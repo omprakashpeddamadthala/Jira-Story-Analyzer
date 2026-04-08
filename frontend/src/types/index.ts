@@ -128,6 +128,7 @@ export interface RepoInfo {
   structure: DirectoryStructure;
   totalFiles: number;
   totalDirectories: number;
+  sourceFiles?: string[];
 }
 
 export interface RepoScanResponse {
