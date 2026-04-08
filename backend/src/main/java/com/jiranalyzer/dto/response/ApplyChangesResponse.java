@@ -32,5 +32,18 @@ public class ApplyChangesResponse {
         private String commitHash;
         private String message;
         private List<String> modifiedFiles;
+        /** Per-file before/after content for the UI diff view. */
+        private List<FileChange> fileChanges;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class FileChange {
+        private String filePath;
+        private String originalContent;
+        private String modifiedContent;
     }
 }

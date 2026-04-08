@@ -146,6 +146,7 @@ export default function RecommendationsPage() {
           <Box>
             <ApplyChangesPanel
               jiraKey={selectedStory.key}
+              storyTitle={title}
               changes={approvedChanges}
             />
           </Box>

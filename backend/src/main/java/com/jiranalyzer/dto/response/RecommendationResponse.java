@@ -31,5 +31,22 @@ public class RecommendationResponse {
         private String rationale;
         private String risk;
         private String patch;
+        /** Structured per-file modifications for programmatic apply. */
+        private List<FileModification> fileModifications;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class FileModification {
+        private String filePath;
+        /** "modify", "create", or "delete" */
+        private String action;
+        /** Content to find in the file (for modify action). */
+        private String searchContent;
+        /** Content to replace with (for modify/create actions). */
+        private String replaceContent;
     }
 }

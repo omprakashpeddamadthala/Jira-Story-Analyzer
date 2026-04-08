@@ -41,7 +41,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             Based on the story requirements and the repository structure, generate a JSON response with:
             1. A high-level summary of what needs to change
             2. Which repositories are impacted
-            3. Specific file-level changes with rationale, risk assessment, and patch suggestions
+            3. Specific file-level changes with rationale, risk assessment, and structured modifications
 
             IMPORTANT: Return ONLY valid JSON matching this exact schema:
             {
@@ -53,10 +53,25 @@ public class RecommendationServiceImpl implements RecommendationService {
                   "files": ["path/to/file1.java", "path/to/file2.ts"],
                   "rationale": "Why this change is needed",
                   "risk": "low|medium|high",
-                  "patch": "Suggested code changes or unified diff"
+                  "patch": "Human-readable description of the code changes",
+                  "fileModifications": [
+                    {
+                      "filePath": "path/to/file1.java",
+                      "action": "modify",
+                      "searchContent": "exact original code snippet to find",
+                      "replaceContent": "replacement code snippet"
+                    }
+                  ]
                 }
               ]
             }
+
+            For fileModifications:
+            - action must be "modify", "create", or "delete"
+            - For "modify": searchContent is the exact code to find, replaceContent is the replacement
+            - For "create": filePath is the new file, replaceContent is the full file content, searchContent is empty
+            - For "delete": filePath is the file to delete, searchContent and replaceContent are empty
+            - Keep searchContent and replaceContent as focused snippets (not entire files)
 
             Be specific about file paths and code changes. Use the actual structure from the repo context.
             Return ONLY the JSON object, no markdown fences, no extra text.
@@ -161,12 +176,25 @@ public class RecommendationServiceImpl implements RecommendationService {
                     }
                 }
 
+                List<RecommendationResponse.FileModification> fileMods = new ArrayList<>();
+                if (change.has("fileModifications") && change.get("fileModifications").isArray()) {
+                    for (JsonNode mod : change.get("fileModifications")) {
+                        fileMods.add(RecommendationResponse.FileModification.builder()
+                                .filePath(mod.has("filePath") ? mod.get("filePath").asText() : "")
+                                .action(mod.has("action") ? mod.get("action").asText() : "modify")
+                                .searchContent(mod.has("searchContent") ? mod.get("searchContent").asText() : "")
+                                .replaceContent(mod.has("replaceContent") ? mod.get("replaceContent").asText() : "")
+                                .build());
+                    }
+                }
+
                 changes.add(ChangeRecommendation.builder()
                         .repo(change.has("repo") ? change.get("repo").asText() : "unknown")
                         .files(files)
                         .rationale(change.has("rationale") ? change.get("rationale").asText() : "")
                         .risk(change.has("risk") ? change.get("risk").asText() : "medium")
                         .patch(change.has("patch") ? change.get("patch").asText() : "")
+                        .fileModifications(fileMods)
                         .build());
             }
         }
