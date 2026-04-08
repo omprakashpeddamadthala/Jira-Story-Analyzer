@@ -147,7 +147,7 @@ public class RepoScanServiceImpl implements RepoScanService {
             languages.add("Ruby");
         }
 
-        // Scan directory structure
+        // Scan directory structure (populate lists only; scanDeep handles counting)
         List<String> topLevelDirs = new ArrayList<>();
         List<String> topLevelFiles = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(repoPath)) {
@@ -156,10 +156,8 @@ public class RepoScanServiceImpl implements RepoScanService {
                 if (IGNORED_DIRS.contains(childName) || childName.startsWith(".")) continue;
                 if (Files.isDirectory(child)) {
                     topLevelDirs.add(childName);
-                    counts[1]++;
                 } else {
                     topLevelFiles.add(childName);
-                    counts[0]++;
                 }
             }
         }
@@ -232,7 +230,7 @@ public class RepoScanServiceImpl implements RepoScanService {
                 "main.py", "app.py", "manage.py", "wsgi.py",
                 "main.go", "main.rs", "main.ts", "main.tsx",
                 "index.js", "index.ts", "index.tsx", "app.tsx", "app.ts",
-                "server.js", "server.ts", "Program.cs"
+                "server.js", "server.ts", "program.cs"
         ).contains(fileName.toLowerCase());
     }
 
