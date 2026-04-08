@@ -84,6 +84,7 @@ public class RecommendationServiceImpl implements RecommendationService {
 
         try {
             String ac = request.getAcceptanceCriteria() != null
+                    && !request.getAcceptanceCriteria().isBlank()
                     ? request.getAcceptanceCriteria() : "Not provided";
             String prompt = String.format(RECOMMENDATION_PROMPT,
                     request.getTitle(),
