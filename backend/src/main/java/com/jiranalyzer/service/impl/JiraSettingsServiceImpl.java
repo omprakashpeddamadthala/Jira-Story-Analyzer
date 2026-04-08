@@ -1,6 +1,5 @@
 package com.jiranalyzer.service.impl;
 
-import com.jiranalyzer.config.JiraConfig;
 import com.jiranalyzer.dto.request.JiraConfigRequest;
 import com.jiranalyzer.dto.response.JiraConfigResponse;
 import com.jiranalyzer.entity.JiraSettings;
@@ -16,25 +15,23 @@ import org.springframework.util.StringUtils;
 public class JiraSettingsServiceImpl implements JiraSettingsService {
 
     private final JiraSettingsRepository settingsRepository;
-    private final JiraConfig jiraConfig;
     private static final Long SETTINGS_ID = 1L;
 
-    public JiraSettingsServiceImpl(JiraSettingsRepository settingsRepository, JiraConfig jiraConfig) {
+    public JiraSettingsServiceImpl(JiraSettingsRepository settingsRepository) {
         this.settingsRepository = settingsRepository;
-        this.jiraConfig = jiraConfig;
     }
 
     @Override
     @Transactional(readOnly = true)
     public JiraConfigResponse getJiraConfig() {
         JiraSettings settings = getOrCreateSettings();
-        String token = getEffectiveApiToken(settings);
+        String token = settings.getApiToken();
         boolean configured = StringUtils.hasText(token);
         String masked = configured ? maskToken(token) : "";
-        
+
         return JiraConfigResponse.builder()
-                .baseUrl(getEffectiveBaseUrl(settings))
-                .email(getEffectiveEmail(settings))
+                .baseUrl(settings.getBaseUrl() != null ? settings.getBaseUrl() : "")
+                .email(settings.getEmail() != null ? settings.getEmail() : "")
                 .apiTokenMasked(masked)
                 .tokenConfigured(configured)
                 .build();
@@ -44,7 +41,7 @@ public class JiraSettingsServiceImpl implements JiraSettingsService {
     @Transactional
     public JiraConfigResponse updateJiraConfig(JiraConfigRequest request) {
         JiraSettings settings = getOrCreateSettings();
-        
+
         if (StringUtils.hasText(request.getBaseUrl())) {
             settings.setBaseUrl(request.getBaseUrl().trim());
         }
@@ -54,30 +51,32 @@ public class JiraSettingsServiceImpl implements JiraSettingsService {
         if (StringUtils.hasText(request.getApiToken())) {
             settings.setApiToken(request.getApiToken().trim());
         }
-        
+
         settingsRepository.save(settings);
+        log.info("Jira configuration updated via UI");
         return getJiraConfig();
     }
 
     @Override
     @Transactional(readOnly = true)
     public String getEffectiveBaseUrl() {
-        return getEffectiveBaseUrl(getOrCreateSettings());
+        JiraSettings settings = getOrCreateSettings();
+        return StringUtils.hasText(settings.getBaseUrl()) ? settings.getBaseUrl() : "";
     }
 
     @Override
     @Transactional(readOnly = true)
     public String getEffectiveEmail() {
-        return getEffectiveEmail(getOrCreateSettings());
+        JiraSettings settings = getOrCreateSettings();
+        return StringUtils.hasText(settings.getEmail()) ? settings.getEmail() : "";
     }
 
     @Override
     @Transactional(readOnly = true)
     public String getEffectiveApiToken() {
-        return getEffectiveApiToken(getOrCreateSettings());
+        JiraSettings settings = getOrCreateSettings();
+        return StringUtils.hasText(settings.getApiToken()) ? settings.getApiToken() : "";
     }
-
-    // --- Helpers ---
 
     private JiraSettings getOrCreateSettings() {
         return settingsRepository.findById(SETTINGS_ID).orElseGet(() -> {
@@ -85,18 +84,6 @@ public class JiraSettingsServiceImpl implements JiraSettingsService {
             newSettings.setId(SETTINGS_ID);
             return newSettings;
         });
-    }
-
-    private String getEffectiveBaseUrl(JiraSettings settings) {
-        return StringUtils.hasText(settings.getBaseUrl()) ? settings.getBaseUrl() : jiraConfig.getBaseUrl();
-    }
-
-    private String getEffectiveEmail(JiraSettings settings) {
-        return StringUtils.hasText(settings.getEmail()) ? settings.getEmail() : jiraConfig.getEmail();
-    }
-
-    private String getEffectiveApiToken(JiraSettings settings) {
-        return StringUtils.hasText(settings.getApiToken()) ? settings.getApiToken() : jiraConfig.getApiToken();
     }
 
     private String maskToken(String token) {

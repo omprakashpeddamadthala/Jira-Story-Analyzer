@@ -30,7 +30,6 @@ public class AnalyzeStoryRequest {
     @Size(max = 10000, message = "Acceptance criteria must not exceed 10000 characters")
     private String acceptanceCriteria;
 
-    @NotBlank(message = "Definition of done is required")
     @Size(max = 5000, message = "Definition of done must not exceed 5000 characters")
     private String definitionOfDone;
 }

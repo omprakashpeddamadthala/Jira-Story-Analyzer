@@ -7,28 +7,16 @@ import static org.junit.jupiter.api.Assertions.*;
 class AIPropertiesTest {
 
     @Test
-    void shouldHaveDefaultProviderAsOpenAI() {
+    void shouldHaveNullProviderByDefault() {
         AIProperties properties = new AIProperties();
-        assertEquals("openai", properties.getProvider());
+        assertNull(properties.getProvider());
     }
 
     @Test
-    void shouldHaveDefaultOpenAIModel() {
+    void shouldHaveNullApiKeysByDefault() {
         AIProperties properties = new AIProperties();
-        assertEquals("gpt-4o", properties.getOpenai().getModel());
-    }
-
-    @Test
-    void shouldHaveDefaultGeminiModel() {
-        AIProperties properties = new AIProperties();
-        assertEquals("gemini-2.0-flash", properties.getGemini().getModel());
-    }
-
-    @Test
-    void shouldHaveDefaultTemperature() {
-        AIProperties properties = new AIProperties();
-        assertEquals(0.7, properties.getOpenai().getTemperature());
-        assertEquals(0.7, properties.getGemini().getTemperature());
+        assertNull(properties.getOpenai().getApiKey());
+        assertNull(properties.getGemini().getApiKey());
     }
 
     @Test
@@ -53,28 +41,81 @@ class AIPropertiesTest {
     void shouldAllowSettingModels() {
         AIProperties properties = new AIProperties();
 
-        properties.getOpenai().setModel("gpt-3.5-turbo");
-        assertEquals("gpt-3.5-turbo", properties.getOpenai().getModel());
+        properties.getOpenai().setModel("gpt-5-nano");
+        assertEquals("gpt-5-nano", properties.getOpenai().getModel());
 
-        properties.getGemini().setModel("gemini-1.5-pro");
-        assertEquals("gemini-1.5-pro", properties.getGemini().getModel());
+        properties.getGemini().setModel("gemini-2.0-flash");
+        assertEquals("gemini-2.0-flash", properties.getGemini().getModel());
     }
 
     @Test
     void shouldAllowSettingTemperature() {
         AIProperties properties = new AIProperties();
 
-        properties.getOpenai().setTemperature(0.5);
-        assertEquals(0.5, properties.getOpenai().getTemperature());
+        properties.getOpenai().setTemperature(1.0);
+        assertEquals(1.0, properties.getOpenai().getTemperature());
 
-        properties.getGemini().setTemperature(0.9);
-        assertEquals(0.9, properties.getGemini().getTemperature());
+        properties.getGemini().setTemperature(0.7);
+        assertEquals(0.7, properties.getGemini().getTemperature());
     }
 
     @Test
-    void shouldHaveEmptyDefaultApiKeys() {
+    void validateShouldThrowWhenProviderIsNull() {
         AIProperties properties = new AIProperties();
-        assertEquals("", properties.getOpenai().getApiKey());
-        assertEquals("", properties.getGemini().getApiKey());
+        properties.setProvider(null);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, properties::validate);
+        assertTrue(ex.getMessage().contains("AI provider is not configured"));
+    }
+
+    @Test
+    void validateShouldThrowWhenProviderIsEmpty() {
+        AIProperties properties = new AIProperties();
+        properties.setProvider("");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, properties::validate);
+        assertTrue(ex.getMessage().contains("AI provider is not configured"));
+    }
+
+    @Test
+    void validateShouldThrowWhenProviderIsUnsupported() {
+        AIProperties properties = new AIProperties();
+        properties.setProvider("anthropic");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, properties::validate);
+        assertTrue(ex.getMessage().contains("Unsupported AI provider"));
+        assertTrue(ex.getMessage().contains("anthropic"));
+    }
+
+    @Test
+    void validateShouldPassForOpenAIProvider() {
+        AIProperties properties = new AIProperties();
+        properties.setProvider("openai");
+        properties.getOpenai().setApiKey("test-key");
+        properties.getOpenai().setModel("gpt-5-nano");
+        properties.getGemini().setModel("gemini-2.0-flash");
+
+        assertDoesNotThrow(properties::validate);
+    }
+
+    @Test
+    void validateShouldPassForGeminiProvider() {
+        AIProperties properties = new AIProperties();
+        properties.setProvider("gemini");
+        properties.getGemini().setApiKey("test-key");
+        properties.getOpenai().setModel("gpt-5-nano");
+        properties.getGemini().setModel("gemini-2.0-flash");
+
+        assertDoesNotThrow(properties::validate);
+    }
+
+    @Test
+    void validateShouldWarnButNotThrowWhenApiKeyMissing() {
+        AIProperties properties = new AIProperties();
+        properties.setProvider("openai");
+        properties.getOpenai().setModel("gpt-5-nano");
+        properties.getGemini().setModel("gemini-2.0-flash");
+        // No API key set — should warn but not throw
+        assertDoesNotThrow(properties::validate);
     }
 }

@@ -6,9 +6,9 @@ spring:
     name: jira-story-analyzer
 
   datasource:
-    url: ${DATABASE_URL:}
-    username: ${DATABASE_USERNAME:}
-    password: ${DATABASE_PASSWORD:}
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -20,23 +20,16 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
-# AI Provider Configuration
-# Switch between providers by changing ai.provider to "openai" or "gemini"
 ai:
-  provider: ${AI_PROVIDER:openai}
+  provider: ${AI_PROVIDER}
   openai:
-    api-key: ${OPENAI_API_KEY:}
+    api-key: ${OPENAI_API_KEY}
     model: gpt-5-nano
     temperature: 1
   gemini:
-    api-key: ${GEMINI_API_KEY:}
+    api-key: ${GEMINI_API_KEY}
     model: gemini-2.0-flash
     temperature: 0.7
-
-jira:
-  base-url: ${JIRA_BASE_URL:}
-  email: ${JIRA_EMAIL:}
-  api-token: ${JIRA_API_TOKEN:}
 
 logging:
   level:

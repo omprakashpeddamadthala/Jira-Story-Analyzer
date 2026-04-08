@@ -1,17 +1,11 @@
 package com.jiranalyzer.config;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
-
-@Configuration
-@ConfigurationProperties(prefix = "jira")
-@Getter
-@Setter
+/**
+ * JiraConfig is no longer used for backend configuration.
+ * Jira credentials are now provided exclusively via the UI and stored in the database.
+ *
+ * @deprecated Jira configuration is now UI-driven only. See JiraSettingsServiceImpl.
+ */
+@Deprecated(since = "2.0", forRemoval = true)
 public class JiraConfig {
-
-    private String baseUrl;
-    private String email;
-    private String apiToken;
 }

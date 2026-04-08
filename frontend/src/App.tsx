@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import AnalyzePage from './pages/AnalyzePage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
+import AiPromptsPage from './pages/AiPromptsPage';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/analyze" element={<AnalyzePage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/aiprompts" element={<AiPromptsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

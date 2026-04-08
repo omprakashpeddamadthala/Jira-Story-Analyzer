@@ -21,6 +21,7 @@ import {
   Psychology as PsychologyIcon,
   History as HistoryIcon,
   Settings as SettingsIcon,
+  AutoAwesome as AutoAwesomeIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
@@ -32,6 +33,7 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: <DashboardIcon /> },
   { path: '/analyze', label: 'Analyze', icon: <PsychologyIcon /> },
   { path: '/history', label: 'History', icon: <HistoryIcon /> },
+  { path: '/aiprompts', label: 'AI Prompts', icon: <AutoAwesomeIcon /> },
   { path: '/settings', label: 'Settings', icon: <SettingsIcon /> },
 ];
 
