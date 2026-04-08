@@ -74,8 +74,8 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
   const handleAnalyze = () => {
     if (!selectedStory) return;
 
-    if (!title.trim() || !description.trim() || !acceptanceCriteria.trim() || !definitionOfDone.trim()) {
-      setError('All fields are required');
+    if (!title.trim() || !description.trim() || !acceptanceCriteria.trim()) {
+      setError('Title, Description, and Acceptance Criteria are required');
       return;
     }
 
@@ -94,7 +94,7 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
       title: title.trim(),
       description: description.trim(),
       acceptanceCriteria: acceptanceCriteria.trim(),
-      definitionOfDone: definitionOfDone.trim(),
+      ...(definitionOfDone.trim() ? { definitionOfDone: definitionOfDone.trim() } : {}),
     };
 
     const abort = analysisApi.analyzeStoryStreaming(request, {
@@ -124,7 +124,7 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
           title: request.title,
           description: request.description,
           acceptanceCriteria: request.acceptanceCriteria,
-          definitionOfDone: request.definitionOfDone,
+          definitionOfDone: request.definitionOfDone ?? '',
           copilotPrompt: '',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
@@ -302,16 +302,15 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
           />
 
           <TextField
-            label="Definition of Done"
+            label="Definition of Done (Optional)"
             value={definitionOfDone}
             onChange={(e) => setDefinitionOfDone(e.target.value)}
             fullWidth
-            required
             multiline
             rows={2}
             variant="outlined"
             size="small"
-            placeholder="Enter the definition of done for this story..."
+            placeholder="Enter the definition of done for this story (optional)..."
             disabled={streaming.isStreaming}
           />
 
@@ -392,7 +391,7 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
                 '&:active': { transform: 'scale(0.98)' },
               }}
             >
-              Analyze with OpenAI
+              Analyze with AI
             </Button>
           )}
         </Box>

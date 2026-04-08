@@ -33,7 +33,7 @@ public class PromptSettingsServiceImpl implements PromptSettingsService {
             - Title: {title}
             - Description: {description}
             - Acceptance Criteria: {acceptanceCriteria}
-            - Definition of Done: {definitionOfDone}
+            - Definition of Done (if provided): {definitionOfDone}
 
             --------------------------------------
             STEP 2: CODEBASE ANALYSIS

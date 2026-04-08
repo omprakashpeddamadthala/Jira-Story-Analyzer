@@ -5,10 +5,6 @@ import com.jiranalyzer.service.impl.GeminiServiceImpl;
 import com.jiranalyzer.service.impl.OpenAIServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.ChatClient;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,84 +14,76 @@ import static org.mockito.Mockito.mock;
 
 class AIProviderConfigTest {
 
-    @SpringBootTest
-    @ActiveProfiles("test")
-    @TestPropertySource(properties = {
-            "ai.provider=openai",
-            "ai.openai.api-key=test-openai-key",
-            "spring.ai.openai.api-key=test-openai-key"
-    })
-    static class OpenAIProviderTest {
+    private final AIProviderConfig config = new AIProviderConfig();
+    private final RestTemplate mockRestTemplate = mock(RestTemplate.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ChatClient mockChatClient = mock(ChatClient.class);
 
-        @Autowired
-        private AIService aiService;
+    @Test
+    void shouldResolveOpenAIWhenBothKeysPresent() {
+        AIProperties properties = createProperties("openai", "openai-key", "gemini-key");
 
-        @Test
-        void shouldLoadOpenAIProvider() {
-            assertNotNull(aiService);
-            assertInstanceOf(OpenAIServiceImpl.class, aiService);
-            assertEquals("openai", aiService.getProviderName());
-        }
-    }
+        AIService service = config.aiService(properties, mockChatClient, mockRestTemplate, objectMapper);
 
-    @SpringBootTest
-    @ActiveProfiles("test")
-    @TestPropertySource(properties = {
-            "ai.provider=gemini",
-            "ai.gemini.api-key=test-gemini-key",
-            "spring.ai.openai.api-key=not-used"
-    })
-    static class GeminiProviderTest {
-
-        @Autowired
-        private AIService aiService;
-
-        @Test
-        void shouldLoadGeminiProvider() {
-            assertNotNull(aiService);
-            assertInstanceOf(GeminiServiceImpl.class, aiService);
-            assertEquals("gemini", aiService.getProviderName());
-        }
+        assertNotNull(service);
+        assertInstanceOf(OpenAIServiceImpl.class, service);
+        assertEquals("openai", service.getProviderName());
     }
 
     @Test
-    void shouldCreateOpenAIServiceWithoutApiKey() {
-        AIProviderConfig config = new AIProviderConfig();
-        AIProperties properties = new AIProperties();
-        properties.setProvider("openai");
-        properties.getOpenai().setApiKey("");
+    void shouldResolveGeminiWhenBothKeysPresent() {
+        AIProperties properties = createProperties("gemini", "openai-key", "gemini-key");
 
-        ChatClient mockChatClient = mock(ChatClient.class);
-        AIService service = config.openAIService(mockChatClient, properties);
+        AIService service = config.aiService(properties, mockChatClient, mockRestTemplate, objectMapper);
+
+        assertNotNull(service);
+        assertInstanceOf(GeminiServiceImpl.class, service);
+        assertEquals("gemini", service.getProviderName());
+    }
+
+    @Test
+    void shouldFallbackToOpenAIWhenOnlyOpenAIKeyPresent() {
+        AIProperties properties = createProperties("gemini", "openai-key", null);
+
+        AIService service = config.aiService(properties, mockChatClient, mockRestTemplate, objectMapper);
 
         assertNotNull(service);
         assertInstanceOf(OpenAIServiceImpl.class, service);
     }
 
     @Test
-    void shouldCreateGeminiServiceWithoutApiKey() {
-        AIProviderConfig config = new AIProviderConfig();
-        AIProperties properties = new AIProperties();
-        properties.setProvider("gemini");
-        properties.getGemini().setApiKey("");
+    void shouldFallbackToGeminiWhenOnlyGeminiKeyPresent() {
+        AIProperties properties = createProperties("openai", null, "gemini-key");
 
-        RestTemplate mockRestTemplate = mock(RestTemplate.class);
-        ObjectMapper objectMapper = new ObjectMapper();
-        AIService service = config.geminiService(mockRestTemplate, properties, objectMapper);
+        AIService service = config.aiService(properties, mockChatClient, mockRestTemplate, objectMapper);
 
         assertNotNull(service);
         assertInstanceOf(GeminiServiceImpl.class, service);
     }
 
     @Test
-    void shouldCreateOpenAIServiceWithValidApiKey() {
-        AIProviderConfig config = new AIProviderConfig();
-        AIProperties properties = new AIProperties();
-        properties.setProvider("openai");
-        properties.getOpenai().setApiKey("valid-key");
+    void shouldCreateGeminiServiceWithoutApiKey() {
+        AIProperties properties = createProperties("gemini", null, null);
 
-        ChatClient mockChatClient = mock(ChatClient.class);
-        AIService service = config.openAIService(mockChatClient, properties);
+        AIService service = config.aiService(properties, mockChatClient, mockRestTemplate, objectMapper);
+
+        assertNotNull(service);
+        assertInstanceOf(GeminiServiceImpl.class, service);
+    }
+
+    @Test
+    void shouldThrowWhenOpenAIResolvedButNoChatClient() {
+        AIProperties properties = createProperties("openai", null, null);
+
+        assertThrows(IllegalStateException.class,
+                () -> config.aiService(properties, null, mockRestTemplate, objectMapper));
+    }
+
+    @Test
+    void shouldCreateOpenAIServiceWithValidApiKey() {
+        AIProperties properties = createProperties("openai", "valid-key", null);
+
+        AIService service = config.aiService(properties, mockChatClient, mockRestTemplate, objectMapper);
 
         assertNotNull(service);
         assertEquals("openai", service.getProviderName());
@@ -103,16 +91,23 @@ class AIProviderConfigTest {
 
     @Test
     void shouldCreateGeminiServiceWithValidApiKey() {
-        AIProviderConfig config = new AIProviderConfig();
-        AIProperties properties = new AIProperties();
-        properties.setProvider("gemini");
-        properties.getGemini().setApiKey("valid-key");
+        AIProperties properties = createProperties("gemini", null, "valid-key");
 
-        RestTemplate mockRestTemplate = mock(RestTemplate.class);
-        ObjectMapper objectMapper = new ObjectMapper();
-        AIService service = config.geminiService(mockRestTemplate, properties, objectMapper);
+        AIService service = config.aiService(properties, mockChatClient, mockRestTemplate, objectMapper);
 
         assertNotNull(service);
         assertEquals("gemini", service.getProviderName());
+    }
+
+    private AIProperties createProperties(String provider, String openAiKey, String geminiKey) {
+        AIProperties properties = new AIProperties();
+        properties.setProvider(provider);
+        if (openAiKey != null) {
+            properties.getOpenai().setApiKey(openAiKey);
+        }
+        if (geminiKey != null) {
+            properties.getGemini().setApiKey(geminiKey);
+        }
+        return properties;
     }
 }

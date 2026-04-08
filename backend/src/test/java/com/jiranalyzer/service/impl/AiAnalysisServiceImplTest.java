@@ -123,6 +123,40 @@ class AiAnalysisServiceImplTest {
     }
 
     @Test
+    void shouldAnalyzeStoryWithNullDefinitionOfDone() {
+        AnalyzeStoryRequest request = AnalyzeStoryRequest.builder()
+                .jiraKey("TEST-NULL-DOD")
+                .title("Story without DoD")
+                .description("Description")
+                .acceptanceCriteria("Criteria")
+                .definitionOfDone(null)
+                .build();
+
+        when(aiService.generateResponse(anyString())).thenReturn("AI generated content");
+        when(analyzedStoryRepository.findByJiraKey("TEST-NULL-DOD")).thenReturn(Optional.empty());
+
+        AnalyzedStory savedStory = AnalyzedStory.builder()
+                .id(UUID.randomUUID())
+                .jiraKey("TEST-NULL-DOD")
+                .title("Story without DoD")
+                .description("Description")
+                .acceptanceCriteria("Criteria")
+                .definitionOfDone(null)
+                .copilotPrompt("AI generated content")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(analyzedStoryRepository.save(any(AnalyzedStory.class))).thenReturn(savedStory);
+
+        AnalyzedStoryResponse response = aiAnalysisService.analyzeStory(request);
+
+        assertNotNull(response);
+        assertEquals("TEST-NULL-DOD", response.getJiraKey());
+        verify(aiService, times(1)).generateResponse(anyString());
+    }
+
+    @Test
     void shouldCallAiServiceOnceForCopilotPrompt() {
         AnalyzeStoryRequest request = AnalyzeStoryRequest.builder()
                 .jiraKey("TEST-789")

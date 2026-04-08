@@ -12,8 +12,6 @@ import {
   CircularProgress,
   Divider,
   Chip,
-  Tabs,
-  Tab,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -27,18 +25,15 @@ import {
   Link as LinkIcon,
   Key as KeyIcon,
   Person as PersonIcon,
-  AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material';
 import { colors, gradients } from '../theme/theme';
 import { settingsApi } from '../services/settingsApi';
-import type { JiraConfigRequest, ConnectionTestResult, PromptConfigRequest } from '../types';
+import type { JiraConfigRequest, ConnectionTestResult } from '../types';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 type TestStatus = 'idle' | 'testing' | 'success' | 'failed';
 
 export default function SettingsPage() {
-  const [tabValue, setTabValue] = useState(0);
-
   // Jira State
   const [baseUrl, setBaseUrl] = useState('');
   const [email, setEmail] = useState('');
@@ -53,37 +48,25 @@ export default function SettingsPage() {
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
 
-  // Prompts State
-  const [copilotTemplate, setCopilotTemplate] = useState('');
-  const [savePromptStatus, setSavePromptStatus] = useState<SaveStatus>('idle');
-
   const [loading, setLoading] = useState(true);
 
   // Load current config on mount
   useEffect(() => {
-    const loadAll = async () => {
+    const loadConfig = async () => {
       try {
-        const [jiraConfig, promptConfig] = await Promise.all([
-          settingsApi.getJiraConfig(),
-          settingsApi.getPromptConfig(),
-        ]);
+        const jiraConfig = await settingsApi.getJiraConfig();
         setBaseUrl(jiraConfig.baseUrl ?? '');
         setEmail(jiraConfig.email ?? '');
         setMaskedToken(jiraConfig.apiTokenMasked ?? '');
         setTokenConfigured(jiraConfig.tokenConfigured);
-        setCopilotTemplate(promptConfig.copilotTemplate ?? '');
       } catch {
         // Non-fatal — user can still fill in the fields
       } finally {
         setLoading(false);
       }
     };
-    loadAll();
+    loadConfig();
   }, []);
-
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
 
   const handleSaveJira = async () => {
     setSaveStatus('saving');
@@ -122,20 +105,6 @@ export default function SettingsPage() {
     } catch {
       setTestStatus('failed');
       setTestResult({ success: false, error: 'Network error – backend unreachable' });
-    }
-  };
-
-  const handleSavePrompts = async () => {
-    setSavePromptStatus('saving');
-    const payload: PromptConfigRequest = {
-      copilotTemplate: copilotTemplate.trim(),
-    };
-    try {
-      const updated = await settingsApi.updatePromptConfig(payload);
-      setCopilotTemplate(updated.copilotTemplate);
-      setSavePromptStatus('saved');
-    } catch {
-      setSavePromptStatus('error');
     }
   };
 
@@ -178,42 +147,11 @@ export default function SettingsPage() {
           </Typography>
         </Box>
         <Typography sx={{ color: colors.onSurfaceVariant, fontSize: '0.9rem', ml: 7 }}>
-          Configure your Jira connection and customize AI generation prompts.
+          Configure your Jira connection settings.
         </Typography>
       </Box>
 
-      {/* Tabs Menu */}
-      <Box sx={{ borderBottom: 1, borderColor: alpha(colors.outlineVariant, 0.4), ml: 7 }}>
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange} 
-          aria-label="Settings Tabs"
-          sx={{
-            '& .MuiTab-root': {
-              fontFamily: '"Manrope", sans-serif',
-              fontWeight: 600,
-              textTransform: 'none',
-              fontSize: '0.95rem',
-              color: colors.onSurfaceVariant,
-            },
-            '& .Mui-selected': {
-              color: `${colors.primary} !important`,
-            },
-            '& .MuiTabs-indicator': {
-              backgroundColor: colors.primary,
-              height: 3,
-              borderRadius: '3px 3px 0 0',
-            }
-          }}
-        >
-          <Tab icon={<LinkIcon fontSize="small" sx={{ mr: 1, mb: '0 !important' }} />} iconPosition="start" label="Jira Connection" />
-          <Tab icon={<AutoAwesomeIcon fontSize="small" sx={{ mr: 1, mb: '0 !important' }} />} iconPosition="start" label="AI Prompts" />
-        </Tabs>
-      </Box>
-
       <Box sx={{ ml: 7 }}>
-        {/* Tab 0: Jira Connection */}
-        {tabValue === 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Card
               sx={{
@@ -412,100 +350,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </Box>
-        )}
-
-        {/* Tab 1: AI Prompts */}
-        {tabValue === 1 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Card
-              sx={{
-                border: `1px solid ${alpha(colors.primary, 0.15)}`,
-                '&:hover': { boxShadow: `0 4px 24px ${alpha(colors.primary, 0.08)}` },
-                transition: 'box-shadow 0.3s ease',
-              }}
-            >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
-                  <AutoAwesomeIcon sx={{ color: colors.primary, fontSize: 20 }} />
-                  <Typography
-                    sx={{
-                      fontFamily: '"Manrope", sans-serif',
-                      fontWeight: 700,
-                      fontSize: '1rem',
-                      color: colors.onSurface,
-                    }}
-                  >
-                    Copilot Prompt Template
-                  </Typography>
-                </Box>
-
-                <Divider sx={{ mb: 2.5, borderColor: alpha(colors.outlineVariant, 0.4) }} />
-
-                <Typography sx={{ fontSize: '0.9rem', color: colors.onSurfaceVariant, mb: 2 }}>
-                  Customize the system prompt passed to the AI when generating GitHub Copilot instructions. 
-                  The following variables will be dynamically injected from your Jira ticket components:
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
-                  {['{title}', '{description}', '{acceptanceCriteria}', '{definitionOfDone}'].map((v) => (
-                    <Chip key={v} label={v} size="small" sx={{ fontFamily: 'monospace', bgcolor: alpha(colors.primary, 0.1), color: colors.primary, fontWeight: 700 }} />
-                  ))}
-                </Box>
-
-                <TextField
-                  id="copilot-prompt-template"
-                  multiline
-                  minRows={15}
-                  maxRows={25}
-                  value={copilotTemplate}
-                  onChange={(e) => { setCopilotTemplate(e.target.value); setSavePromptStatus('idle'); }}
-                  fullWidth
-                  variant="outlined"
-                  sx={{
-                    ...fieldSx,
-                    '& .MuiInputBase-input': {
-                      fontFamily: '"Fira Code", monospace',
-                      fontSize: '0.85rem',
-                      lineHeight: 1.6,
-                    }
-                  }}
-                />
-
-                {savePromptStatus === 'saved' && (
-                  <Alert severity="success" sx={{ mt: 2, borderRadius: '10px', fontSize: '0.85rem' }}>
-                    Prompt template saved successfully.
-                  </Alert>
-                )}
-                {savePromptStatus === 'error' && (
-                  <Alert severity="error" sx={{ mt: 2, borderRadius: '10px', fontSize: '0.85rem' }}>
-                    Failed to save prompt template.
-                  </Alert>
-                )}
-
-                <Box sx={{ display: 'flex', mt: 3 }}>
-                  <Button
-                    id="save-prompt-settings"
-                    variant="contained"
-                    size="medium"
-                    startIcon={savePromptStatus === 'saving' ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : <SaveIcon />}
-                    onClick={handleSavePrompts}
-                    disabled={savePromptStatus === 'saving' || !copilotTemplate.trim()}
-                    sx={{
-                      background: gradients.primary,
-                      fontWeight: 700,
-                      borderRadius: '10px',
-                      px: 3,
-                      boxShadow: `0 2px 12px ${alpha(colors.primary, 0.35)}`,
-                      '&:hover': { boxShadow: `0 4px 20px ${alpha(colors.primary, 0.5)}`, transform: 'translateY(-1px)' },
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    {savePromptStatus === 'saving' ? 'Saving…' : 'Save Template'}
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        )}
       </Box>
     </Box>
   );

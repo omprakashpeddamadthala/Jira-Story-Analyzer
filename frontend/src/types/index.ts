@@ -13,7 +13,7 @@ export interface AnalyzeStoryRequest {
   title: string;
   description: string;
   acceptanceCriteria: string;
-  definitionOfDone: string;
+  definitionOfDone?: string;
 }
 
 export interface AnalyzedStory {
@@ -22,7 +22,7 @@ export interface AnalyzedStory {
   title: string;
   description: string;
   acceptanceCriteria: string;
-  definitionOfDone: string;
+  definitionOfDone?: string;
   copilotPrompt: string;
   createdAt: string;
   updatedAt: string;

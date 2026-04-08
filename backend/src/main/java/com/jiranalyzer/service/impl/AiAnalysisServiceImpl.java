@@ -160,11 +160,12 @@ public class AiAnalysisServiceImpl implements AiAnalysisService {
 
     private String callAi(String template, AnalyzeStoryRequest request) {
         try {
+            String definitionOfDone = request.getDefinitionOfDone() != null ? request.getDefinitionOfDone() : "";
             String prompt = template
                     .replace("{title}", request.getTitle())
                     .replace("{description}", request.getDescription())
                     .replace("{acceptanceCriteria}", request.getAcceptanceCriteria())
-                    .replace("{definitionOfDone}", request.getDefinitionOfDone());
+                    .replace("{definitionOfDone}", definitionOfDone);
 
             log.debug("Calling AI ({}) for story: {} with prompt length: {}",
                     aiService.getProviderName(), request.getJiraKey(), prompt.length());
