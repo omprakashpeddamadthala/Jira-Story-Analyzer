@@ -88,9 +88,6 @@ public class RecommendationServiceImpl implements RecommendationService {
      */
     private static final int MAX_PROMPT_TOKENS = 12_000;
 
-    /** Maximum number of retry attempts when AI returns truncated JSON. */
-    private static final int MAX_RETRIES = 1;
-
     /** Rough estimate: 1 token ≈ 4 characters for English / code text. */
     private static final int CHARS_PER_TOKEN = 4;
 
