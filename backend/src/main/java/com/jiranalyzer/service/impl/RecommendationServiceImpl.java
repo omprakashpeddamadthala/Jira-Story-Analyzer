@@ -83,10 +83,12 @@ public class RecommendationServiceImpl implements RecommendationService {
         String repoContext = buildRepoContextString(scanResult);
 
         try {
+            String ac = request.getAcceptanceCriteria() != null
+                    ? request.getAcceptanceCriteria() : "Not provided";
             String prompt = String.format(RECOMMENDATION_PROMPT,
                     request.getTitle(),
                     request.getDescription(),
-                    request.getAcceptanceCriteria(),
+                    ac,
                     repoContext);
 
             String aiResponse = aiService.generateResponse(prompt);

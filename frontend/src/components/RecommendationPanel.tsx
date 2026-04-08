@@ -55,8 +55,8 @@ export default function RecommendationPanel({
       setError('Please scan a folder first');
       return;
     }
-    if (!title.trim() || !description.trim() || !acceptanceCriteria.trim()) {
-      setError('Title, Description, and Acceptance Criteria are required');
+    if (!title.trim() || !description.trim()) {
+      setError('Title and Description are required');
       return;
     }
 
