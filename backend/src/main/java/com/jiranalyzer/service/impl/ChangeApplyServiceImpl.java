@@ -215,13 +215,15 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
 
     private List<String> detectModifiedFiles(String repoPath) {
         try {
-            String output = runGitCommand(repoPath, "git", "diff", "--name-only", "HEAD");
+            // Use git status --porcelain to detect both tracked changes and new untracked files
+            String output = runGitCommand(repoPath, "git", "status", "--porcelain");
             if (output.isBlank()) {
                 return List.of();
             }
             return Arrays.stream(output.split("\n"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
+                    .map(s -> s.length() > 3 ? s.substring(3) : s)
                     .toList();
         } catch (IOException ex) {
             log.warn("Failed to detect modified files: {}", ex.getMessage());
