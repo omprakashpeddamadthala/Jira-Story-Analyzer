@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 @Service
@@ -386,11 +387,17 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                     .filter(Files::isRegularFile)
                     .filter(p -> p.getFileName().toString().equals(fileName))
                     .filter(p -> {
-                        // Skip ignored directories
+                        // Skip ignored directories (aligned with scanDeep IGNORED_DIRS)
                         String rel = repoRoot.relativize(p).toString();
-                        return !rel.contains(".git") && !rel.contains("node_modules")
-                                && !rel.contains("target" + java.io.File.separator + "classes")
-                                && !rel.contains("build" + java.io.File.separator + "classes");
+                        for (String part : rel.replace('\\', '/').split("/")) {
+                            if (part.startsWith(".") || Set.of(
+                                    "node_modules", "target", "build", "dist", "out",
+                                    "vendor", "bin", "__pycache__", "coverage"
+                            ).contains(part)) {
+                                return false;
+                            }
+                        }
+                        return true;
                     })
                     .findFirst()
                     .orElse(null);
