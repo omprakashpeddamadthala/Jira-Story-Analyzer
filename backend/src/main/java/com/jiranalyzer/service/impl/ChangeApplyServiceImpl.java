@@ -23,6 +23,32 @@ import java.util.Locale;
 @Slf4j
 public class ChangeApplyServiceImpl implements ChangeApplyService {
 
+    private static final boolean IS_WINDOWS = System.getProperty("os.name", "")
+            .toLowerCase(Locale.ROOT).contains("win");
+
+    /** Resolve the git executable path, preferring git.exe on Windows. */
+    private static final String GIT_EXECUTABLE = resolveGitExecutable();
+
+    private static String resolveGitExecutable() {
+        if (!IS_WINDOWS) {
+            return "git";
+        }
+        // On Windows, ProcessBuilder cannot always find "git" without the
+        // shell's PATH resolution.  Try common install locations first,
+        // then fall back to "git.exe" (which works when git is on PATH).
+        String[] candidates = {
+                System.getenv("ProgramFiles") + "\\Git\\cmd\\git.exe",
+                System.getenv("ProgramFiles(x86)") + "\\Git\\cmd\\git.exe",
+                System.getenv("LOCALAPPDATA") + "\\Programs\\Git\\cmd\\git.exe"
+        };
+        for (String candidate : candidates) {
+            if (candidate != null && Files.exists(Paths.get(candidate))) {
+                return candidate;
+            }
+        }
+        return "git.exe";
+    }
+
     @Override
     public ApplyChangesResponse applyChanges(ApplyChangesRequest request) {
         String branchName = buildBranchName(request.getJiraKey());
@@ -243,7 +269,12 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
     }
 
     private String runGitCommand(String workDir, String... command) throws IOException {
-        ProcessBuilder pb = new ProcessBuilder(command);
+        // Replace bare "git" with the resolved executable so it works on Windows
+        String[] resolvedCommand = Arrays.copyOf(command, command.length);
+        if (resolvedCommand.length > 0 && "git".equals(resolvedCommand[0])) {
+            resolvedCommand[0] = GIT_EXECUTABLE;
+        }
+        ProcessBuilder pb = new ProcessBuilder(resolvedCommand);
         pb.directory(Paths.get(workDir).toFile());
         pb.redirectErrorStream(true);
         Process process = pb.start();
