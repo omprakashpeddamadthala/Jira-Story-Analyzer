@@ -23,7 +23,7 @@ import {
   Code as CodeIcon,
   Warning as WarningIcon,
 } from '@mui/icons-material';
-import type { RecommendationResponse, ChangeRecommendation, RepoScanResponse, ChangeItem } from '../types';
+import type { RecommendationResponse, ChangeRecommendation, RepoScanResponse, ChangeItem, FileModification } from '../types';
 import { recommendationApi } from '../services/api';
 import { colors, gradients } from '../theme/theme';
 
@@ -114,12 +114,20 @@ export default function RecommendationPanel({
       .filter((_, i) => approvedIndices.has(i))
       .map((change) => {
         const repoInfo = scanResult?.repositories.find((r) => r.name === change.repo);
+        // Map recommendation FileModifications to ChangeItem FileModifications
+        const fileMods: FileModification[] | undefined = change.fileModifications?.map((fm) => ({
+          filePath: fm.filePath,
+          action: fm.action,
+          searchContent: fm.searchContent,
+          replaceContent: fm.replaceContent,
+        }));
         return {
           repo: change.repo,
           repoPath: repoInfo?.path ?? '',
           files: change.files,
           patch: change.patch,
           rationale: change.rationale,
+          fileModifications: fileMods,
         };
       });
     onApprove(approved);

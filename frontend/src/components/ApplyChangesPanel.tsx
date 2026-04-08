@@ -11,6 +11,10 @@ import {
   Chip,
   Switch,
   FormControlLabel,
+  Collapse,
+  IconButton,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -18,18 +22,22 @@ import {
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
   DryCleaningOutlined as DryRunIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  CompareArrows as DiffIcon,
 } from '@mui/icons-material';
-import type { ChangeItem, ApplyChangesResponse } from '../types';
+import type { ChangeItem, ApplyChangesResponse, FileChange } from '../types';
 import { changesApi } from '../services/api';
 import { colors } from '../theme/theme';
 
 interface ApplyChangesPanelProps {
   jiraKey: string;
+  storyTitle?: string;
   changes: ChangeItem[];
   onComplete?: (result: ApplyChangesResponse) => void;
 }
 
-export default function ApplyChangesPanel({ jiraKey, changes, onComplete }: ApplyChangesPanelProps) {
+export default function ApplyChangesPanel({ jiraKey, storyTitle, changes, onComplete }: ApplyChangesPanelProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ApplyChangesResponse | null>(null);
@@ -48,6 +56,7 @@ export default function ApplyChangesPanel({ jiraKey, changes, onComplete }: Appl
     try {
       const response = await changesApi.apply({
         jiraKey,
+        storyTitle,
         changes,
         dryRun,
       });
@@ -208,6 +217,21 @@ export default function ApplyChangesPanel({ jiraKey, changes, onComplete }: Appl
                       Commit: {repoResult.commitHash}
                     </Typography>
                   )}
+
+                  {/* Code Diff View */}
+                  {repoResult.fileChanges && repoResult.fileChanges.length > 0 && (
+                    <Box mt={1.5}>
+                      <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                        <DiffIcon sx={{ fontSize: 16, color: colors.primary }} />
+                        <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: colors.primary }}>
+                          Code Changes ({repoResult.fileChanges.length} file{repoResult.fileChanges.length !== 1 ? 's' : ''})
+                        </Typography>
+                      </Box>
+                      {repoResult.fileChanges.map((fc, fcIdx) => (
+                        <FileDiffView key={fcIdx} fileChange={fc} />
+                      ))}
+                    </Box>
+                  )}
                 </Box>
               ))}
             </CardContent>
@@ -217,3 +241,217 @@ export default function ApplyChangesPanel({ jiraKey, changes, onComplete }: Appl
     </Box>
   );
 }
+
+/** Side-by-side / inline diff viewer for a single file. */
+function FileDiffView({ fileChange }: { fileChange: FileChange }) {
+  const [expanded, setExpanded] = useState(false);
+  const [viewMode, setViewMode] = useState<'side-by-side' | 'inline'>('side-by-side');
+  const tabValue = viewMode === 'side-by-side' ? 0 : 1;
+
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+    setViewMode(newValue === 0 ? 'side-by-side' : 'inline');
+  };
+
+  const originalLines = (fileChange.originalContent || '').split('\n');
+  const modifiedLines = (fileChange.modifiedContent || '').split('\n');
+
+  // Simple line-level diff: compute which lines changed
+  const maxLines = Math.max(originalLines.length, modifiedLines.length);
+
+  return (
+    <Box
+      sx={{
+        mb: 1,
+        border: `1px solid ${alpha(colors.outlineVariant, 0.4)}`,
+        borderRadius: 1.5,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{
+          px: 1.5,
+          py: 0.75,
+          bgcolor: alpha(colors.surfaceContainer, 0.5),
+          borderBottom: expanded ? `1px solid ${alpha(colors.outlineVariant, 0.3)}` : 'none',
+        }}
+      >
+        <Typography
+          sx={{
+            fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+            fontSize: '0.72rem',
+            fontWeight: 600,
+            color: colors.onSurface,
+          }}
+        >
+          {fileChange.filePath}
+        </Typography>
+        <IconButton size="small" onClick={() => setExpanded(!expanded)}>
+          {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+        </IconButton>
+      </Box>
+
+      <Collapse in={expanded}>
+        {/* View mode tabs */}
+        <Box sx={{ borderBottom: `1px solid ${alpha(colors.outlineVariant, 0.2)}` }}>
+          <Tabs
+            value={tabValue}
+            onChange={handleTabChange}
+            sx={{
+              minHeight: 32,
+              '& .MuiTab-root': { minHeight: 32, py: 0, fontSize: '0.7rem', textTransform: 'none' },
+            }}
+          >
+            <Tab label="Side by Side" />
+            <Tab label="Inline" />
+          </Tabs>
+        </Box>
+
+        {viewMode === 'side-by-side' ? (
+          /* Side-by-side view */
+          <Box display="flex" sx={{ overflow: 'auto', maxHeight: 500 }}>
+            {/* Original */}
+            <Box flex={1} sx={{ borderRight: `1px solid ${alpha(colors.outlineVariant, 0.3)}`, minWidth: 0 }}>
+              <Box
+                sx={{
+                  px: 1,
+                  py: 0.5,
+                  bgcolor: alpha(colors.error, 0.06),
+                  borderBottom: `1px solid ${alpha(colors.outlineVariant, 0.2)}`,
+                }}
+              >
+                <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: colors.error }}>Original</Typography>
+              </Box>
+              <Box component="pre" sx={diffCodeStyle}>
+                {originalLines.map((line, i) => {
+                  const changed = i < modifiedLines.length ? line !== modifiedLines[i] : true;
+                  return (
+                    <Box
+                      key={i}
+                      component="div"
+                      sx={{
+                        display: 'flex',
+                        bgcolor: changed ? alpha(colors.error, 0.08) : 'transparent',
+                        '&:hover': { bgcolor: alpha(colors.onSurface, 0.04) },
+                      }}
+                    >
+                      <Box component="span" sx={lineNumStyle}>{i + 1}</Box>
+                      <Box component="span" sx={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{line}</Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+            {/* Modified */}
+            <Box flex={1} sx={{ minWidth: 0 }}>
+              <Box
+                sx={{
+                  px: 1,
+                  py: 0.5,
+                  bgcolor: alpha(colors.success, 0.06),
+                  borderBottom: `1px solid ${alpha(colors.outlineVariant, 0.2)}`,
+                }}
+              >
+                <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: colors.success }}>Modified</Typography>
+              </Box>
+              <Box component="pre" sx={diffCodeStyle}>
+                {modifiedLines.map((line, i) => {
+                  const changed = i < originalLines.length ? line !== originalLines[i] : true;
+                  return (
+                    <Box
+                      key={i}
+                      component="div"
+                      sx={{
+                        display: 'flex',
+                        bgcolor: changed ? alpha(colors.success, 0.08) : 'transparent',
+                        '&:hover': { bgcolor: alpha(colors.onSurface, 0.04) },
+                      }}
+                    >
+                      <Box component="span" sx={lineNumStyle}>{i + 1}</Box>
+                      <Box component="span" sx={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{line}</Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          </Box>
+        ) : (
+          /* Inline diff view */
+          <Box sx={{ overflow: 'auto', maxHeight: 500 }}>
+            <Box component="pre" sx={diffCodeStyle}>
+              {Array.from({ length: maxLines }).map((_, i) => {
+                const orig = i < originalLines.length ? originalLines[i] : undefined;
+                const mod = i < modifiedLines.length ? modifiedLines[i] : undefined;
+                const same = orig === mod;
+
+                if (same) {
+                  return (
+                    <Box key={i} component="div" sx={{ display: 'flex' }}>
+                      <Box component="span" sx={lineNumStyle}>{i + 1}</Box>
+                      <Box component="span" sx={{ px: 0.5, color: '#888' }}> </Box>
+                      <Box component="span" sx={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{orig}</Box>
+                    </Box>
+                  );
+                }
+
+                return (
+                  <Box key={i} component="div">
+                    {orig !== undefined && (
+                      <Box
+                        component="div"
+                        sx={{
+                          display: 'flex',
+                          bgcolor: alpha(colors.error, 0.1),
+                        }}
+                      >
+                        <Box component="span" sx={lineNumStyle}>{i + 1}</Box>
+                        <Box component="span" sx={{ px: 0.5, color: colors.error, fontWeight: 700 }}>-</Box>
+                        <Box component="span" sx={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{orig}</Box>
+                      </Box>
+                    )}
+                    {mod !== undefined && (
+                      <Box
+                        component="div"
+                        sx={{
+                          display: 'flex',
+                          bgcolor: alpha(colors.success, 0.1),
+                        }}
+                      >
+                        <Box component="span" sx={lineNumStyle}>{i + 1}</Box>
+                        <Box component="span" sx={{ px: 0.5, color: colors.success, fontWeight: 700 }}>+</Box>
+                        <Box component="span" sx={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{mod}</Box>
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        )}
+      </Collapse>
+    </Box>
+  );
+}
+
+const diffCodeStyle = {
+  fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+  fontSize: '0.72rem',
+  lineHeight: 1.7,
+  m: 0,
+  p: 0,
+  overflow: 'auto',
+} as const;
+
+const lineNumStyle = {
+  display: 'inline-block',
+  width: 40,
+  minWidth: 40,
+  textAlign: 'right' as const,
+  pr: 1,
+  color: '#999',
+  userSelect: 'none' as const,
+  fontSize: '0.65rem',
+} as const;

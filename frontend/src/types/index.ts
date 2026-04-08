@@ -145,12 +145,20 @@ export interface GenerateRecommendationsRequest {
   jiraKey?: string;
 }
 
+export interface FileModification {
+  filePath: string;
+  action: 'modify' | 'create' | 'delete';
+  searchContent?: string;
+  replaceContent?: string;
+}
+
 export interface ChangeRecommendation {
   repo: string;
   files: string[];
   rationale: string;
   risk: string;
   patch?: string;
+  fileModifications?: FileModification[];
 }
 
 export interface RecommendationResponse {
@@ -167,12 +175,20 @@ export interface ChangeItem {
   files: string[];
   patch?: string;
   rationale: string;
+  fileModifications?: FileModification[];
 }
 
 export interface ApplyChangesRequest {
   jiraKey: string;
+  storyTitle?: string;
   changes: ChangeItem[];
   dryRun: boolean;
+}
+
+export interface FileChange {
+  filePath: string;
+  originalContent: string;
+  modifiedContent: string;
 }
 
 export interface RepoResult {
@@ -183,6 +199,7 @@ export interface RepoResult {
   commitHash?: string;
   message: string;
   modifiedFiles: string[];
+  fileChanges?: FileChange[];
 }
 
 export interface ApplyChangesResponse {

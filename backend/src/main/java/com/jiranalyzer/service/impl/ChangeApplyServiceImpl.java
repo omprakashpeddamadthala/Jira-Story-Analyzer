@@ -2,7 +2,9 @@ package com.jiranalyzer.service.impl;
 
 import com.jiranalyzer.dto.request.ApplyChangesRequest;
 import com.jiranalyzer.dto.request.ApplyChangesRequest.ChangeItem;
+import com.jiranalyzer.dto.request.ApplyChangesRequest.FileModification;
 import com.jiranalyzer.dto.response.ApplyChangesResponse;
+import com.jiranalyzer.dto.response.ApplyChangesResponse.FileChange;
 import com.jiranalyzer.dto.response.ApplyChangesResponse.RepoResult;
 import com.jiranalyzer.service.ChangeApplyService;
 import lombok.extern.slf4j.Slf4j;
@@ -11,13 +13,16 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -51,7 +56,7 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
 
     @Override
     public ApplyChangesResponse applyChanges(ApplyChangesRequest request) {
-        String branchName = buildBranchName(request.getJiraKey());
+        String branchName = buildBranchName(request.getJiraKey(), request.getStoryTitle());
         log.info("Applying changes for {} (dryRun={}, branch={})",
                 request.getJiraKey(), request.isDryRun(), branchName);
 
@@ -127,6 +132,7 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
     private RepoResult executeChange(ChangeItem change, String branchName) {
         String repoPath = change.getRepoPath();
         List<String> modifiedFiles = new ArrayList<>();
+        List<FileChange> fileChanges = new ArrayList<>();
         String originalBranch = null;
 
         try {
@@ -138,6 +144,7 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                         .success(false)
                         .message("Not a git repository: " + repoPath)
                         .modifiedFiles(List.of())
+                        .fileChanges(List.of())
                         .build();
             }
 
@@ -148,41 +155,37 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
             String branchResult = runGitCommand(repoPath, "git", "checkout", "-b", branchName);
             log.info("Created branch: {}", branchResult);
 
-            // Apply patch if available
-            boolean patchApplied = false;
+            boolean changesApplied = false;
+
+            // Strategy 1: Try git apply with patch content (for proper unified diffs)
             if (change.getPatch() != null && !change.getPatch().isBlank()) {
-                Path patchFile = Files.createTempFile("patch-", ".diff");
-                try {
-                    Files.writeString(patchFile, change.getPatch());
-                    try {
-                        runGitCommand(repoPath, "git", "apply", "--check", patchFile.toAbsolutePath().toString());
-                        runGitCommand(repoPath, "git", "apply", patchFile.toAbsolutePath().toString());
-                        // Detect actually modified files from git rather than relying on caller
-                        List<String> detectedFiles = detectModifiedFiles(repoPath);
-                        if (!detectedFiles.isEmpty()) {
-                            modifiedFiles.addAll(detectedFiles);
-                        } else if (change.getFiles() != null) {
-                            modifiedFiles.addAll(change.getFiles());
-                        }
-                        patchApplied = true;
-                    } catch (IOException patchEx) {
-                        log.warn("Patch apply failed: {}", patchEx.getMessage());
-                    }
-                } finally {
-                    Files.deleteIfExists(patchFile);
-                }
+                changesApplied = tryGitApply(repoPath, change.getPatch(), modifiedFiles);
             }
 
-            if (!patchApplied) {
-                // No patch or patch failed — rollback branch and report
+            // Strategy 2: Apply structured fileModifications (search-and-replace)
+            if (!changesApplied && change.getFileModifications() != null
+                    && !change.getFileModifications().isEmpty()) {
+                changesApplied = applyFileModifications(
+                        repoPath, change.getFileModifications(), modifiedFiles, fileChanges);
+            }
+
+            if (!changesApplied) {
+                // Neither strategy worked — rollback branch and report
                 rollbackBranch(repoPath, originalBranch, branchName);
                 return RepoResult.builder()
                         .repo(change.getRepo())
                         .repoPath(repoPath)
                         .success(false)
-                        .message("No applicable patch provided. Changes require manual implementation.")
+                        .message("No applicable changes could be applied. "
+                                + "The AI-generated suggestions may need manual implementation.")
                         .modifiedFiles(List.of())
+                        .fileChanges(List.of())
                         .build();
+            }
+
+            // If git apply succeeded but we have no fileChanges yet, capture diffs
+            if (fileChanges.isEmpty() && !modifiedFiles.isEmpty()) {
+                captureGitDiffs(repoPath, modifiedFiles, fileChanges);
             }
 
             // Stage and commit
@@ -191,7 +194,6 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                     runGitCommand(repoPath, "git", "add", file);
                 }
             } else {
-                // Patch applied but file list unknown — stage all changes
                 runGitCommand(repoPath, "git", "add", "-A");
                 List<String> stagedFiles = detectModifiedFiles(repoPath);
                 modifiedFiles.addAll(stagedFiles);
@@ -210,21 +212,21 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                         .commitHash(commitHash)
                         .message("Changes applied and committed successfully")
                         .modifiedFiles(modifiedFiles)
+                        .fileChanges(fileChanges)
                         .build();
             } else {
-                // Patch was a no-op — clean up branch
                 rollbackBranch(repoPath, originalBranch, branchName);
                 return RepoResult.builder()
                         .repo(change.getRepo())
                         .repoPath(repoPath)
                         .success(true)
-                        .message("Patch applied but no files were changed")
+                        .message("Changes applied but no files were modified")
                         .modifiedFiles(List.of())
+                        .fileChanges(List.of())
                         .build();
             }
         } catch (Exception ex) {
             log.error("Failed to apply changes to {}: {}", repoPath, ex.getMessage(), ex);
-            // Attempt rollback on failure
             if (originalBranch != null) {
                 rollbackBranch(repoPath, originalBranch, branchName);
             }
@@ -235,7 +237,151 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                     .branchName(branchName)
                     .message("Error applying changes: " + ex.getMessage())
                     .modifiedFiles(modifiedFiles)
+                    .fileChanges(fileChanges)
                     .build();
+        }
+    }
+
+    /**
+     * Try to apply patch content using git apply.
+     * Returns true if the patch was applied successfully.
+     */
+    private boolean tryGitApply(String repoPath, String patchContent,
+                                List<String> modifiedFiles) {
+        Path patchFile = null;
+        try {
+            patchFile = Files.createTempFile("patch-", ".diff");
+            Files.writeString(patchFile, patchContent);
+            runGitCommand(repoPath, "git", "apply", "--check", patchFile.toAbsolutePath().toString());
+            runGitCommand(repoPath, "git", "apply", patchFile.toAbsolutePath().toString());
+            List<String> detectedFiles = detectModifiedFiles(repoPath);
+            if (!detectedFiles.isEmpty()) {
+                modifiedFiles.addAll(detectedFiles);
+            }
+            return true;
+        } catch (IOException ex) {
+            log.warn("git apply failed, will try fileModifications fallback: {}", ex.getMessage());
+            return false;
+        } finally {
+            if (patchFile != null) {
+                try { Files.deleteIfExists(patchFile); } catch (IOException ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Apply structured file modifications (search-and-replace, create, delete).
+     * Captures before/after content for the UI diff view.
+     */
+    private boolean applyFileModifications(String repoPath,
+                                           List<FileModification> modifications,
+                                           List<String> modifiedFiles,
+                                           List<FileChange> fileChanges) {
+        boolean anyApplied = false;
+        // De-duplicate by file path to avoid processing the same file twice
+        Map<String, List<FileModification>> byFile = new LinkedHashMap<>();
+        for (FileModification mod : modifications) {
+            if (mod.getFilePath() == null || mod.getFilePath().isBlank()) continue;
+            byFile.computeIfAbsent(mod.getFilePath(), k -> new ArrayList<>()).add(mod);
+        }
+
+        for (Map.Entry<String, List<FileModification>> entry : byFile.entrySet()) {
+            String relPath = entry.getKey();
+            Path filePath = Paths.get(repoPath, relPath);
+
+            for (FileModification mod : entry.getValue()) {
+                String action = mod.getAction() != null ? mod.getAction().toLowerCase(Locale.ROOT) : "modify";
+                try {
+                    switch (action) {
+                        case "create" -> {
+                            String originalContent = "";
+                            if (Files.exists(filePath)) {
+                                originalContent = Files.readString(filePath, StandardCharsets.UTF_8);
+                            } else {
+                                Files.createDirectories(filePath.getParent());
+                            }
+                            String newContent = mod.getReplaceContent() != null ? mod.getReplaceContent() : "";
+                            Files.writeString(filePath, newContent, StandardCharsets.UTF_8);
+                            fileChanges.add(FileChange.builder()
+                                    .filePath(relPath)
+                                    .originalContent(originalContent)
+                                    .modifiedContent(newContent)
+                                    .build());
+                            modifiedFiles.add(relPath);
+                            anyApplied = true;
+                        }
+                        case "delete" -> {
+                            if (Files.exists(filePath)) {
+                                String originalContent = Files.readString(filePath, StandardCharsets.UTF_8);
+                                Files.delete(filePath);
+                                fileChanges.add(FileChange.builder()
+                                        .filePath(relPath)
+                                        .originalContent(originalContent)
+                                        .modifiedContent("")
+                                        .build());
+                                modifiedFiles.add(relPath);
+                                anyApplied = true;
+                            }
+                        }
+                        default -> { // "modify"
+                            if (!Files.exists(filePath)) {
+                                log.warn("File not found for modify: {}", filePath);
+                                continue;
+                            }
+                            String originalContent = Files.readString(filePath, StandardCharsets.UTF_8);
+                            String search = mod.getSearchContent();
+                            String replace = mod.getReplaceContent();
+                            if (search != null && !search.isEmpty() && originalContent.contains(search)) {
+                                String newContent = originalContent.replace(search, replace != null ? replace : "");
+                                Files.writeString(filePath, newContent, StandardCharsets.UTF_8);
+                                fileChanges.add(FileChange.builder()
+                                        .filePath(relPath)
+                                        .originalContent(originalContent)
+                                        .modifiedContent(newContent)
+                                        .build());
+                                modifiedFiles.add(relPath);
+                                anyApplied = true;
+                            } else {
+                                log.warn("Search content not found in {}: {}",
+                                        relPath, search != null ? search.substring(0, Math.min(80, search.length())) : "null");
+                            }
+                        }
+                    }
+                } catch (IOException ex) {
+                    log.warn("Failed to apply modification to {}: {}", relPath, ex.getMessage());
+                }
+            }
+        }
+        return anyApplied;
+    }
+
+    /**
+     * Capture git diff (HEAD vs working tree) for each modified file so the UI
+     * can show the before/after content.
+     */
+    private void captureGitDiffs(String repoPath, List<String> modifiedFiles,
+                                 List<FileChange> fileChanges) {
+        for (String relPath : modifiedFiles) {
+            try {
+                // Get the original content from HEAD
+                String original;
+                try {
+                    original = runGitCommand(repoPath, "git", "show", "HEAD:" + relPath);
+                } catch (IOException ex) {
+                    original = ""; // new file
+                }
+                // Get the current (modified) content from disk
+                Path filePath = Paths.get(repoPath, relPath);
+                String modified = Files.exists(filePath)
+                        ? Files.readString(filePath, StandardCharsets.UTF_8) : "";
+                fileChanges.add(FileChange.builder()
+                        .filePath(relPath)
+                        .originalContent(original)
+                        .modifiedContent(modified)
+                        .build());
+            } catch (IOException ex) {
+                log.warn("Failed to capture diff for {}: {}", relPath, ex.getMessage());
+            }
         }
     }
 
@@ -316,10 +462,25 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
         return "unknown";
     }
 
-    private String buildBranchName(String jiraKey) {
-        String slug = jiraKey.toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9-]", "-")
-                .replaceAll("-+", "-");
-        return "devin/" + slug + "-changes";
+    /**
+     * Build a branch name like feature/{jiraKey}-{story-name-slug}.
+     * e.g. feature/SCRUM-26-add-login-page
+     */
+    private String buildBranchName(String jiraKey, String storyTitle) {
+        String keyPart = jiraKey != null ? jiraKey.trim() : "unknown";
+        String titleSlug = "";
+        if (storyTitle != null && !storyTitle.isBlank()) {
+            titleSlug = storyTitle.toLowerCase(Locale.ROOT)
+                    .replaceAll("[^a-z0-9]+", "-")
+                    .replaceAll("^-|-$", "");
+            // Limit slug length to keep branch name reasonable
+            if (titleSlug.length() > 50) {
+                titleSlug = titleSlug.substring(0, 50).replaceAll("-$", "");
+            }
+        }
+        if (titleSlug.isEmpty()) {
+            return "feature/" + keyPart + "-changes";
+        }
+        return "feature/" + keyPart + "-" + titleSlug;
     }
 }
