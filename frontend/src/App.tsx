@@ -8,6 +8,7 @@ import AnalyzePage from './pages/AnalyzePage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import AiPromptsPage from './pages/AiPromptsPage';
+import RecommendationsPage from './pages/RecommendationsPage';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/analyze" element={<AnalyzePage />} />
+            <Route path="/recommendations" element={<RecommendationsPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/aiprompts" element={<AiPromptsPage />} />

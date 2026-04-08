@@ -1,5 +1,11 @@
 import axios from 'axios';
-import type { ApiResponse, JiraStory, AnalyzeStoryRequest, AnalyzedStory, StreamingCallbacks } from '../types';
+import type {
+  ApiResponse, JiraStory, AnalyzeStoryRequest, AnalyzedStory, StreamingCallbacks,
+  RephraseRequest, RephraseResponse,
+  RepoScanResponse,
+  GenerateRecommendationsRequest, RecommendationResponse,
+  ApplyChangesRequest, ApplyChangesResponse,
+} from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
@@ -123,5 +129,38 @@ export const analysisApi = {
 
   deleteAnalyzedStory: async (id: string): Promise<void> => {
     await apiClient.delete(`/analysis/stories/${id}`);
+  },
+
+  rephrase: async (request: RephraseRequest): Promise<RephraseResponse> => {
+    const response = await apiClient.post<ApiResponse<RephraseResponse>>('/analysis/rephrase', request);
+    return response.data.data;
+  },
+};
+
+export const repoApi = {
+  scanFolder: async (folderPath: string): Promise<RepoScanResponse> => {
+    const response = await apiClient.post<ApiResponse<RepoScanResponse>>('/repos/scan', { folderPath });
+    return response.data.data;
+  },
+
+  getCachedScan: async (folderPath: string): Promise<RepoScanResponse | null> => {
+    const response = await apiClient.get<ApiResponse<RepoScanResponse>>('/repos/scan', {
+      params: { folderPath },
+    });
+    return response.data.success ? response.data.data : null;
+  },
+};
+
+export const recommendationApi = {
+  generate: async (request: GenerateRecommendationsRequest): Promise<RecommendationResponse> => {
+    const response = await apiClient.post<ApiResponse<RecommendationResponse>>('/recommendations/generate', request);
+    return response.data.data;
+  },
+};
+
+export const changesApi = {
+  apply: async (request: ApplyChangesRequest): Promise<ApplyChangesResponse> => {
+    const response = await apiClient.post<ApiResponse<ApplyChangesResponse>>('/changes/apply', request);
+    return response.data.data;
   },
 };

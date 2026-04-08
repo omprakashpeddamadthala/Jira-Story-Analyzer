@@ -21,6 +21,7 @@ import {
 import type { JiraStory, AnalyzeStoryRequest, AnalyzedStory, StreamingState, AnalysisSectionKey } from '../types';
 import { analysisApi } from '../services/api';
 import { colors, gradients } from '../theme/theme';
+import RephrasePanel from './RephrasePanel';
 
 interface StoryFormProps {
   selectedStory: JiraStory | null;
@@ -312,6 +313,19 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
             variant="outlined"
             size="small"
             placeholder="Enter the definition of done for this story (optional)..."
+            disabled={streaming.isStreaming}
+          />
+
+          {/* Rephrase with AI */}
+          <RephrasePanel
+            title={title}
+            description={description}
+            acceptanceCriteria={acceptanceCriteria}
+            onUseRephrased={(t, d, ac) => {
+              setTitle(t);
+              setDescription(d);
+              setAcceptanceCriteria(ac);
+            }}
             disabled={streaming.isStreaming}
           />
 

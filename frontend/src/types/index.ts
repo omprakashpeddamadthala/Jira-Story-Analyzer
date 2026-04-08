@@ -89,3 +89,104 @@ export interface PromptConfigRequest {
 export interface PromptConfigResponse {
   copilotTemplate: string;
 }
+
+// --- Rephrase types ---
+export interface RephraseRequest {
+  title: string;
+  description: string;
+  acceptanceCriteria: string;
+}
+
+export interface RephraseResponse {
+  originalTitle: string;
+  originalDescription: string;
+  originalAcceptanceCriteria: string;
+  rephrasedTitle: string;
+  rephrasedDescription: string;
+  rephrasedAcceptanceCriteria: string;
+}
+
+// --- Repository scanning types ---
+export interface RepoScanRequest {
+  folderPath: string;
+}
+
+export interface DirectoryStructure {
+  name: string;
+  topLevelDirs: string[];
+  topLevelFiles: string[];
+}
+
+export interface RepoInfo {
+  name: string;
+  path: string;
+  languages: string[];
+  frameworks: string[];
+  packageManager: string;
+  entryPoints: string[];
+  keyModules: string[];
+  structure: DirectoryStructure;
+  totalFiles: number;
+  totalDirectories: number;
+}
+
+export interface RepoScanResponse {
+  folderPath: string;
+  totalRepos: number;
+  repositories: RepoInfo[];
+}
+
+// --- Recommendation types ---
+export interface GenerateRecommendationsRequest {
+  title: string;
+  description: string;
+  acceptanceCriteria: string;
+  folderPath: string;
+  jiraKey?: string;
+}
+
+export interface ChangeRecommendation {
+  repo: string;
+  files: string[];
+  rationale: string;
+  risk: string;
+  patch?: string;
+}
+
+export interface RecommendationResponse {
+  summary: string;
+  jiraKey?: string;
+  impactedRepos: string[];
+  changes: ChangeRecommendation[];
+}
+
+// --- Apply changes types ---
+export interface ChangeItem {
+  repo: string;
+  repoPath: string;
+  files: string[];
+  patch?: string;
+  rationale: string;
+}
+
+export interface ApplyChangesRequest {
+  jiraKey: string;
+  changes: ChangeItem[];
+  dryRun: boolean;
+}
+
+export interface RepoResult {
+  repo: string;
+  repoPath: string;
+  success: boolean;
+  branchName?: string;
+  commitHash?: string;
+  message: string;
+  modifiedFiles: string[];
+}
+
+export interface ApplyChangesResponse {
+  dryRun: boolean;
+  branchName: string;
+  results: RepoResult[];
+}

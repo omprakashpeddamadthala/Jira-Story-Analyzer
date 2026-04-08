@@ -22,6 +22,7 @@ import {
   History as HistoryIcon,
   Settings as SettingsIcon,
   AutoAwesome as AutoAwesomeIcon,
+  Lightbulb as RecommendIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
@@ -32,6 +33,7 @@ const SIDEBAR_WIDTH = 260;
 const navItems = [
   { path: '/', label: 'Dashboard', icon: <DashboardIcon /> },
   { path: '/analyze', label: 'Analyze', icon: <PsychologyIcon /> },
+  { path: '/recommendations', label: 'Recommendations', icon: <RecommendIcon /> },
   { path: '/history', label: 'History', icon: <HistoryIcon /> },
   { path: '/aiprompts', label: 'AI Prompts', icon: <AutoAwesomeIcon /> },
   { path: '/settings', label: 'Settings', icon: <SettingsIcon /> },
