@@ -41,8 +41,8 @@ export default function RephrasePanel({
   const [result, setResult] = useState<RephraseResponse | null>(null);
 
   const handleRephrase = async () => {
-    if (!title.trim() || !description.trim() || !acceptanceCriteria.trim()) {
-      setError('Title, Description, and Acceptance Criteria are required');
+    if (!title.trim() || !description.trim()) {
+      setError('Title and Description are required');
       return;
     }
 
@@ -77,7 +77,7 @@ export default function RephrasePanel({
         variant="outlined"
         size="small"
         onClick={handleRephrase}
-        disabled={loading || disabled || !title.trim() || !description.trim() || !acceptanceCriteria.trim()}
+        disabled={loading || disabled || !title.trim() || !description.trim()}
         startIcon={loading ? <CircularProgress size={16} /> : <RephraseIcon />}
         sx={{
           borderRadius: '10px',

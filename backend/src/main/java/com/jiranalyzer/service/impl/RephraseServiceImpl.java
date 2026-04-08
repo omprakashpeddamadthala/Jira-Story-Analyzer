@@ -56,10 +56,13 @@ public class RephraseServiceImpl implements RephraseService {
                 truncate(request.getTitle(), 50), request.getDescription().length());
 
         try {
+            String ac = request.getAcceptanceCriteria() != null
+                    && !request.getAcceptanceCriteria().isBlank()
+                    ? request.getAcceptanceCriteria() : "Not provided";
             String prompt = String.format(REPHRASE_PROMPT,
                     request.getTitle(),
                     request.getDescription(),
-                    request.getAcceptanceCriteria());
+                    ac);
 
             String aiResponse = aiService.generateResponse(prompt);
             log.debug("AI rephrase response length: {}", aiResponse.length());
@@ -74,7 +77,7 @@ public class RephraseServiceImpl implements RephraseService {
                     .originalAcceptanceCriteria(request.getAcceptanceCriteria())
                     .rephrasedTitle(getJsonText(json, "rephrasedTitle", request.getTitle()))
                     .rephrasedDescription(getJsonText(json, "rephrasedDescription", request.getDescription()))
-                    .rephrasedAcceptanceCriteria(getJsonText(json, "rephrasedAcceptanceCriteria", request.getAcceptanceCriteria()))
+                    .rephrasedAcceptanceCriteria(getJsonText(json, "rephrasedAcceptanceCriteria", ac))
                     .build();
         } catch (AiAnalysisException ex) {
             throw ex;

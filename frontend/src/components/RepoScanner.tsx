@@ -48,6 +48,17 @@ export default function RepoScanner({ onScanComplete }: RepoScannerProps) {
     setError(null);
 
     try {
+      // On first scan, check cache to avoid redundant work.
+      // If results already exist (re-scan), always perform a fresh scan.
+      if (!scanResult) {
+        const cached = await repoApi.getCachedScan(folderPath.trim());
+        if (cached) {
+          setScanResult(cached);
+          onScanComplete?.(cached);
+          return;
+        }
+      }
+
       const result = await repoApi.scanFolder(folderPath.trim());
       setScanResult(result);
       onScanComplete?.(result);
@@ -120,7 +131,7 @@ export default function RepoScanner({ onScanComplete }: RepoScannerProps) {
                 whiteSpace: 'nowrap',
               }}
             >
-              {loading ? 'Scanning...' : 'Scan'}
+              {loading ? 'Scanning...' : scanResult ? 'Re-scan' : 'Scan'}
             </Button>
           </Box>
 

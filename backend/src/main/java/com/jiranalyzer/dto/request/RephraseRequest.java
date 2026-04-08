@@ -20,6 +20,5 @@ public class RephraseRequest {
     @NotBlank(message = "Description is required")
     private String description;
 
-    @NotBlank(message = "Acceptance criteria is required")
     private String acceptanceCriteria;
 }
