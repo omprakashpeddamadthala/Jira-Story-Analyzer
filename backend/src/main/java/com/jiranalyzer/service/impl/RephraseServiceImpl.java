@@ -74,7 +74,7 @@ public class RephraseServiceImpl implements RephraseService {
             return RephraseResponse.builder()
                     .originalTitle(request.getTitle())
                     .originalDescription(request.getDescription())
-                    .originalAcceptanceCriteria(ac)
+                    .originalAcceptanceCriteria(request.getAcceptanceCriteria())
                     .rephrasedTitle(getJsonText(json, "rephrasedTitle", request.getTitle()))
                     .rephrasedDescription(getJsonText(json, "rephrasedDescription", request.getDescription()))
                     .rephrasedAcceptanceCriteria(getJsonText(json, "rephrasedAcceptanceCriteria", ac))
