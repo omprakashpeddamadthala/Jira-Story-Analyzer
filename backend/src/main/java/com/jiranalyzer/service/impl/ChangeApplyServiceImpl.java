@@ -329,7 +329,12 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                             String search = mod.getSearchContent();
                             String replace = mod.getReplaceContent();
                             if (search != null && !search.isEmpty() && currentContent.contains(search)) {
-                                String newContent = currentContent.replace(search, replace != null ? replace : "");
+                                // Replace only the first occurrence to avoid corrupting
+                                // files when the snippet appears in multiple locations
+                                int idx = currentContent.indexOf(search);
+                                String newContent = currentContent.substring(0, idx)
+                                        + (replace != null ? replace : "")
+                                        + currentContent.substring(idx + search.length());
                                 Files.writeString(filePath, newContent, StandardCharsets.UTF_8);
                                 fileModified = true;
                             } else {
