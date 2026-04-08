@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -130,7 +131,11 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                     try {
                         runGitCommand(repoPath, "git", "apply", "--check", patchFile.toAbsolutePath().toString());
                         runGitCommand(repoPath, "git", "apply", patchFile.toAbsolutePath().toString());
-                        if (change.getFiles() != null) {
+                        // Detect actually modified files from git rather than relying on caller
+                        List<String> detectedFiles = detectModifiedFiles(repoPath);
+                        if (!detectedFiles.isEmpty()) {
+                            modifiedFiles.addAll(detectedFiles);
+                        } else if (change.getFiles() != null) {
                             modifiedFiles.addAll(change.getFiles());
                         }
                         patchApplied = true;
@@ -159,6 +164,14 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                 for (String file : modifiedFiles) {
                     runGitCommand(repoPath, "git", "add", file);
                 }
+            } else {
+                // Patch applied but file list unknown — stage all changes
+                runGitCommand(repoPath, "git", "add", "-A");
+                List<String> stagedFiles = detectModifiedFiles(repoPath);
+                modifiedFiles.addAll(stagedFiles);
+            }
+
+            if (!modifiedFiles.isEmpty()) {
                 String commitMsg = String.format("feat: implement changes for story (%s)", change.getRationale());
                 String commitResult = runGitCommand(repoPath, "git", "commit", "-m", commitMsg);
                 String commitHash = extractCommitHash(commitResult);
@@ -173,15 +186,14 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                         .modifiedFiles(modifiedFiles)
                         .build();
             } else {
-                // Patch applied but no files listed — clean up branch
+                // Patch was a no-op — clean up branch
                 rollbackBranch(repoPath, originalBranch, branchName);
                 return RepoResult.builder()
                         .repo(change.getRepo())
                         .repoPath(repoPath)
                         .success(true)
-                        .branchName(branchName)
-                        .message("No files were modified")
-                        .modifiedFiles(modifiedFiles)
+                        .message("Patch applied but no files were changed")
+                        .modifiedFiles(List.of())
                         .build();
             }
         } catch (Exception ex) {
@@ -198,6 +210,22 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                     .message("Error applying changes: " + ex.getMessage())
                     .modifiedFiles(modifiedFiles)
                     .build();
+        }
+    }
+
+    private List<String> detectModifiedFiles(String repoPath) {
+        try {
+            String output = runGitCommand(repoPath, "git", "diff", "--name-only", "HEAD");
+            if (output.isBlank()) {
+                return List.of();
+            }
+            return Arrays.stream(output.split("\n"))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
+        } catch (IOException ex) {
+            log.warn("Failed to detect modified files: {}", ex.getMessage());
+            return List.of();
         }
     }
 
