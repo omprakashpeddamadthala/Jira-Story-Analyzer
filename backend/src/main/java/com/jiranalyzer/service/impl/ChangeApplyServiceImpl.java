@@ -203,6 +203,7 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
 
     private void rollbackBranch(String repoPath, String originalBranch, String branchName) {
         try {
+            runGitCommand(repoPath, "git", "reset", "--hard");
             runGitCommand(repoPath, "git", "checkout", originalBranch);
             runGitCommand(repoPath, "git", "branch", "-D", branchName);
             log.info("Rolled back to branch '{}' and deleted '{}'", originalBranch, branchName);
