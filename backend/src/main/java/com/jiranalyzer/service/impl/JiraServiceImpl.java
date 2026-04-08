@@ -23,10 +23,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
 public class JiraServiceImpl implements JiraService {
+
+    private static final Pattern VALID_PROJECT_KEY = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
 
     private final RestTemplate restTemplate;
     private final JiraSettingsService settingsService;
@@ -68,6 +71,10 @@ public class JiraServiceImpl implements JiraService {
         StringBuilder jqlBuilder = new StringBuilder();
         jqlBuilder.append("assignee = '").append(accountId).append("'");
         if (projectKey != null && !projectKey.isBlank()) {
+            if (!VALID_PROJECT_KEY.matcher(projectKey).matches()) {
+                log.warn("Invalid project key format rejected: {}", projectKey);
+                throw new JiraApiException("Invalid project key format. Only letters, digits, and underscores are allowed (e.g. SCRUM, MY_PROJ).");
+            }
             jqlBuilder.append(" AND project = '").append(projectKey).append("'");
         }
         jqlBuilder.append(" AND statusCategory != 3");
@@ -271,7 +278,7 @@ public class JiraServiceImpl implements JiraService {
             if (parts.length == 2) {
                 String acSection = parts[1].trim();
                 // Stop at the next section header if present
-                String[] nextSection = acSection.split("(?i)(?:^|\\n)\\s*(?:##?\\s*|definition of done|dod|technical notes|notes)\\s*[:：]?", 2);
+                String[] nextSection = acSection.split("(?i)(?:^|\\n)\\s*(?:##?\\s+\\S|\\b(?:definition of done|dod|technical notes|notes)\\b)\\s*[:：]?", 2);
                 return nextSection[0].trim();
             }
         }
