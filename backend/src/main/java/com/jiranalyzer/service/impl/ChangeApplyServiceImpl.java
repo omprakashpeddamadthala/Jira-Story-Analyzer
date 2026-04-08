@@ -278,7 +278,9 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                                            List<String> modifiedFiles,
                                            List<FileChange> fileChanges) {
         boolean anyApplied = false;
-        // De-duplicate by file path to avoid processing the same file twice
+        Path repoRoot = Paths.get(repoPath).toAbsolutePath().normalize();
+
+        // Group by file path to apply all modifications per file in one pass
         Map<String, List<FileModification>> byFile = new LinkedHashMap<>();
         for (FileModification mod : modifications) {
             if (mod.getFilePath() == null || mod.getFilePath().isBlank()) continue;
@@ -287,40 +289,35 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
 
         for (Map.Entry<String, List<FileModification>> entry : byFile.entrySet()) {
             String relPath = entry.getKey();
-            Path filePath = Paths.get(repoPath, relPath);
+            Path filePath = repoRoot.resolve(relPath).normalize();
 
-            for (FileModification mod : entry.getValue()) {
-                String action = mod.getAction() != null ? mod.getAction().toLowerCase(Locale.ROOT) : "modify";
-                try {
+            // Guard against path traversal
+            if (!filePath.startsWith(repoRoot)) {
+                log.warn("Path traversal attempt blocked: {}", relPath);
+                continue;
+            }
+
+            try {
+                // Capture original content once before any modifications
+                String originalContent = Files.exists(filePath)
+                        ? Files.readString(filePath, StandardCharsets.UTF_8) : "";
+                boolean fileModified = false;
+
+                for (FileModification mod : entry.getValue()) {
+                    String action = mod.getAction() != null ? mod.getAction().toLowerCase(Locale.ROOT) : "modify";
                     switch (action) {
                         case "create" -> {
-                            String originalContent = "";
-                            if (Files.exists(filePath)) {
-                                originalContent = Files.readString(filePath, StandardCharsets.UTF_8);
-                            } else {
+                            if (!Files.exists(filePath)) {
                                 Files.createDirectories(filePath.getParent());
                             }
                             String newContent = mod.getReplaceContent() != null ? mod.getReplaceContent() : "";
                             Files.writeString(filePath, newContent, StandardCharsets.UTF_8);
-                            fileChanges.add(FileChange.builder()
-                                    .filePath(relPath)
-                                    .originalContent(originalContent)
-                                    .modifiedContent(newContent)
-                                    .build());
-                            modifiedFiles.add(relPath);
-                            anyApplied = true;
+                            fileModified = true;
                         }
                         case "delete" -> {
                             if (Files.exists(filePath)) {
-                                String originalContent = Files.readString(filePath, StandardCharsets.UTF_8);
                                 Files.delete(filePath);
-                                fileChanges.add(FileChange.builder()
-                                        .filePath(relPath)
-                                        .originalContent(originalContent)
-                                        .modifiedContent("")
-                                        .build());
-                                modifiedFiles.add(relPath);
-                                anyApplied = true;
+                                fileModified = true;
                             }
                         }
                         default -> { // "modify"
@@ -328,28 +325,35 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                                 log.warn("File not found for modify: {}", filePath);
                                 continue;
                             }
-                            String originalContent = Files.readString(filePath, StandardCharsets.UTF_8);
+                            String currentContent = Files.readString(filePath, StandardCharsets.UTF_8);
                             String search = mod.getSearchContent();
                             String replace = mod.getReplaceContent();
-                            if (search != null && !search.isEmpty() && originalContent.contains(search)) {
-                                String newContent = originalContent.replace(search, replace != null ? replace : "");
+                            if (search != null && !search.isEmpty() && currentContent.contains(search)) {
+                                String newContent = currentContent.replace(search, replace != null ? replace : "");
                                 Files.writeString(filePath, newContent, StandardCharsets.UTF_8);
-                                fileChanges.add(FileChange.builder()
-                                        .filePath(relPath)
-                                        .originalContent(originalContent)
-                                        .modifiedContent(newContent)
-                                        .build());
-                                modifiedFiles.add(relPath);
-                                anyApplied = true;
+                                fileModified = true;
                             } else {
                                 log.warn("Search content not found in {}: {}",
                                         relPath, search != null ? search.substring(0, Math.min(80, search.length())) : "null");
                             }
                         }
                     }
-                } catch (IOException ex) {
-                    log.warn("Failed to apply modification to {}: {}", relPath, ex.getMessage());
                 }
+
+                // Record a single FileChange entry per file (original -> final)
+                if (fileModified) {
+                    String finalContent = Files.exists(filePath)
+                            ? Files.readString(filePath, StandardCharsets.UTF_8) : "";
+                    fileChanges.add(FileChange.builder()
+                            .filePath(relPath)
+                            .originalContent(originalContent)
+                            .modifiedContent(finalContent)
+                            .build());
+                    modifiedFiles.add(relPath);
+                    anyApplied = true;
+                }
+            } catch (IOException ex) {
+                log.warn("Failed to apply modification to {}: {}", relPath, ex.getMessage());
             }
         }
         return anyApplied;
@@ -361,7 +365,14 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
      */
     private void captureGitDiffs(String repoPath, List<String> modifiedFiles,
                                  List<FileChange> fileChanges) {
+        Path repoRoot = Paths.get(repoPath).toAbsolutePath().normalize();
         for (String relPath : modifiedFiles) {
+            Path filePath = repoRoot.resolve(relPath).normalize();
+            // Guard against path traversal
+            if (!filePath.startsWith(repoRoot)) {
+                log.warn("Path traversal attempt blocked in captureGitDiffs: {}", relPath);
+                continue;
+            }
             try {
                 // Get the original content from HEAD
                 String original;
@@ -371,7 +382,6 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                     original = ""; // new file
                 }
                 // Get the current (modified) content from disk
-                Path filePath = Paths.get(repoPath, relPath);
                 String modified = Files.exists(filePath)
                         ? Files.readString(filePath, StandardCharsets.UTF_8) : "";
                 fileChanges.add(FileChange.builder()
@@ -467,7 +477,8 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
      * e.g. feature/SCRUM-26-add-login-page
      */
     private String buildBranchName(String jiraKey, String storyTitle) {
-        String keyPart = jiraKey != null ? jiraKey.trim() : "unknown";
+        String keyPart = (jiraKey != null ? jiraKey.trim() : "unknown").toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9-]+", "-").replaceAll("^-|-$", "");
         String titleSlug = "";
         if (storyTitle != null && !storyTitle.isBlank()) {
             titleSlug = storyTitle.toLowerCase(Locale.ROOT)
