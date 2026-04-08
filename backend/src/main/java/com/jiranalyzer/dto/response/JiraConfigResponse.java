@@ -23,4 +23,14 @@ public class JiraConfigResponse {
      * True if a non-empty token is currently configured.
      */
     private boolean tokenConfigured;
+
+    /**
+     * Jira project key filter (e.g. "SCRUM"). Empty means all projects.
+     */
+    private String projectKey;
+
+    /**
+     * Custom field ID for acceptance criteria (e.g. "customfield_10028").
+     */
+    private String acceptanceCriteriaField;
 }

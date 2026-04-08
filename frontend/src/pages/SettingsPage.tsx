@@ -41,6 +41,8 @@ export default function SettingsPage() {
   const [maskedToken, setMaskedToken] = useState('');
   const [tokenConfigured, setTokenConfigured] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [projectKey, setProjectKey] = useState('');
+  const [acceptanceCriteriaField, setAcceptanceCriteriaField] = useState('');
   
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
@@ -59,6 +61,8 @@ export default function SettingsPage() {
         setEmail(jiraConfig.email ?? '');
         setMaskedToken(jiraConfig.apiTokenMasked ?? '');
         setTokenConfigured(jiraConfig.tokenConfigured);
+        setProjectKey(jiraConfig.projectKey ?? '');
+        setAcceptanceCriteriaField(jiraConfig.acceptanceCriteriaField ?? '');
       } catch {
         // Non-fatal — user can still fill in the fields
       } finally {
@@ -75,11 +79,15 @@ export default function SettingsPage() {
       baseUrl: baseUrl.trim(),
       email: email.trim(),
       ...(apiToken.trim() ? { apiToken: apiToken.trim() } : {}),
+      projectKey: projectKey.trim(),
+      acceptanceCriteriaField: acceptanceCriteriaField.trim(),
     };
     try {
       const updated = await settingsApi.saveJiraConfig(payload);
       setMaskedToken(updated.apiTokenMasked ?? '');
       setTokenConfigured(updated.tokenConfigured);
+      setProjectKey(updated.projectKey ?? '');
+      setAcceptanceCriteriaField(updated.acceptanceCriteriaField ?? '');
       setApiToken(''); // clear plain-text field after save
       setSaveStatus('saved');
       setTestStatus('idle'); // reset test after save
@@ -264,6 +272,50 @@ export default function SettingsPage() {
                         </InputAdornment>
                       ),
                     }}
+                    sx={fieldSx}
+                  />
+                </Box>
+
+                <Divider sx={{ my: 2.5, borderColor: alpha(colors.outlineVariant, 0.4) }} />
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <SettingsIcon sx={{ color: colors.primary, fontSize: 20 }} />
+                  <Typography
+                    sx={{
+                      fontFamily: '"Manrope", sans-serif',
+                      fontWeight: 700,
+                      fontSize: '1rem',
+                      color: colors.onSurface,
+                    }}
+                  >
+                    Project Settings
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                  <TextField
+                    id="jira-project-key"
+                    label="Project Key (Optional)"
+                    placeholder="e.g. SCRUM, PROJ — leave blank to fetch all projects"
+                    value={projectKey}
+                    onChange={(e) => { setProjectKey(e.target.value); setSaveStatus('idle'); }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    helperText="Filter stories by Jira project key. Leave empty to fetch stories from all projects."
+                    sx={fieldSx}
+                  />
+
+                  <TextField
+                    id="jira-ac-field"
+                    label="Acceptance Criteria Field (Optional)"
+                    placeholder="e.g. customfield_10028"
+                    value={acceptanceCriteriaField}
+                    onChange={(e) => { setAcceptanceCriteriaField(e.target.value); setSaveStatus('idle'); }}
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    helperText="Custom field ID for acceptance criteria. If blank, it will be parsed from the description."
                     sx={fieldSx}
                   />
                 </Box>

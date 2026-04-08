@@ -31,4 +31,10 @@ public class JiraSettings {
 
     @Column(name = "api_token")
     private String apiToken;
+
+    @Column(name = "project_key")
+    private String projectKey;
+
+    @Column(name = "acceptance_criteria_field")
+    private String acceptanceCriteriaField;
 }

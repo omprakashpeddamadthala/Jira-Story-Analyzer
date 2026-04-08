@@ -14,4 +14,8 @@ public interface JiraSettingsService {
     String getEffectiveEmail();
 
     String getEffectiveApiToken();
+
+    String getEffectiveProjectKey();
+
+    String getEffectiveAcceptanceCriteriaField();
 }

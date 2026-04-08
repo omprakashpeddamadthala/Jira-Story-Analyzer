@@ -34,6 +34,8 @@ public class JiraSettingsServiceImpl implements JiraSettingsService {
                 .email(settings.getEmail() != null ? settings.getEmail() : "")
                 .apiTokenMasked(masked)
                 .tokenConfigured(configured)
+                .projectKey(settings.getProjectKey() != null ? settings.getProjectKey() : "")
+                .acceptanceCriteriaField(settings.getAcceptanceCriteriaField() != null ? settings.getAcceptanceCriteriaField() : "")
                 .build();
     }
 
@@ -50,6 +52,13 @@ public class JiraSettingsServiceImpl implements JiraSettingsService {
         }
         if (StringUtils.hasText(request.getApiToken())) {
             settings.setApiToken(request.getApiToken().trim());
+        }
+        // projectKey can be blank (means all projects)
+        if (request.getProjectKey() != null) {
+            settings.setProjectKey(request.getProjectKey().trim());
+        }
+        if (request.getAcceptanceCriteriaField() != null) {
+            settings.setAcceptanceCriteriaField(request.getAcceptanceCriteriaField().trim());
         }
 
         settingsRepository.save(settings);
@@ -76,6 +85,20 @@ public class JiraSettingsServiceImpl implements JiraSettingsService {
     public String getEffectiveApiToken() {
         JiraSettings settings = getOrCreateSettings();
         return StringUtils.hasText(settings.getApiToken()) ? settings.getApiToken() : "";
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getEffectiveProjectKey() {
+        JiraSettings settings = getOrCreateSettings();
+        return StringUtils.hasText(settings.getProjectKey()) ? settings.getProjectKey() : "";
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getEffectiveAcceptanceCriteriaField() {
+        JiraSettings settings = getOrCreateSettings();
+        return StringUtils.hasText(settings.getAcceptanceCriteriaField()) ? settings.getAcceptanceCriteriaField() : "";
     }
 
     private JiraSettings getOrCreateSettings() {
