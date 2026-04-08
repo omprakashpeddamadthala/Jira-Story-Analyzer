@@ -24,7 +24,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 
 @Service
 @Slf4j
@@ -377,34 +381,54 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
         return anyApplied;
     }
 
+    private static final Set<String> FIND_IGNORED_DIRS = Set.of(
+            "node_modules", "target", "build", "dist", "out",
+            "vendor", "bin", "__pycache__", "coverage");
+
     /**
      * Search for a file by name within the repo directory tree.
+     * Uses FileVisitor with SKIP_SUBTREE to avoid traversing ignored
+     * directories (.git, node_modules, target, etc.) for performance.
      * Returns the first match or null if not found.
      */
     private Path findFileByName(Path repoRoot, String fileName) {
-        try (Stream<Path> walk = Files.walk(repoRoot, 8)) {
-            return walk
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().equals(fileName))
-                    .filter(p -> {
-                        // Skip ignored directories (aligned with scanDeep IGNORED_DIRS)
-                        String rel = repoRoot.relativize(p).toString();
-                        for (String part : rel.replace('\\', '/').split("/")) {
-                            if (part.startsWith(".") || Set.of(
-                                    "node_modules", "target", "build", "dist", "out",
-                                    "vendor", "bin", "__pycache__", "coverage"
-                            ).contains(part)) {
-                                return false;
-                            }
-                        }
-                        return true;
-                    })
-                    .findFirst()
-                    .orElse(null);
+        AtomicReference<Path> result = new AtomicReference<>();
+        try {
+            Files.walkFileTree(repoRoot, Set.of(), 8, new FileVisitor<Path>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    if (result.get() != null) return FileVisitResult.TERMINATE;
+                    if (dir.equals(repoRoot)) return FileVisitResult.CONTINUE;
+                    String dirName = dir.getFileName().toString();
+                    if (dirName.startsWith(".") || FIND_IGNORED_DIRS.contains(dirName)) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (file.getFileName().toString().equals(fileName)) {
+                        result.set(file);
+                        return FileVisitResult.TERMINATE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
+                    return result.get() != null ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
+                }
+            });
         } catch (IOException ex) {
             log.warn("File search failed for '{}': {}", fileName, ex.getMessage());
-            return null;
         }
+        return result.get();
     }
 
     /**
