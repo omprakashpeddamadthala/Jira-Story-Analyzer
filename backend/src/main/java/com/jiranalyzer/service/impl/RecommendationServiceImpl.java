@@ -1,5 +1,6 @@
 package com.jiranalyzer.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jiranalyzer.dto.request.GenerateRecommendationsRequest;
@@ -83,9 +84,9 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     /**
      * Conservative token limit for the model context window.
-     * GPT-3.5-turbo has 16,385 tokens; we reserve ~2,000 for the response.
+     * Reserve ~4,000 tokens for the response to avoid truncated JSON output.
      */
-    private static final int MAX_PROMPT_TOKENS = 14_000;
+    private static final int MAX_PROMPT_TOKENS = 12_000;
 
     /** Rough estimate: 1 token ≈ 4 characters for English / code text. */
     private static final int CHARS_PER_TOKEN = 4;
@@ -153,13 +154,153 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     /**
      * Call the AI service with a single prompt and parse the JSON response.
+     * If the response is truncated JSON, attempt to repair it. If repair fails,
+     * retry once with an explicit instruction to keep the response concise.
      */
     private RecommendationResponse callAiAndParse(String prompt, String jiraKey) throws Exception {
         String aiResponse = aiService.generateResponse(prompt);
         log.debug("AI recommendation response length: {}", aiResponse.length());
         String jsonContent = extractJson(aiResponse);
-        JsonNode json = objectMapper.readTree(jsonContent);
-        return parseRecommendationResponse(json, jiraKey);
+
+        // Try to parse directly
+        JsonNode json = tryParseJson(jsonContent);
+        if (json != null) {
+            return parseRecommendationResponse(json, jiraKey);
+        }
+
+        // JSON is truncated — try to repair it
+        log.warn("AI returned truncated JSON (length={}), attempting repair", jsonContent.length());
+        String repaired = repairTruncatedJson(jsonContent);
+        json = tryParseJson(repaired);
+        if (json != null) {
+            log.info("Successfully parsed repaired JSON");
+            return parseRecommendationResponse(json, jiraKey);
+        }
+
+        // Repair failed — retry once with a shorter-response instruction
+        log.warn("JSON repair failed, retrying with concise prompt");
+        String concisePrompt = prompt + "\n\nIMPORTANT: Keep your response under 2000 tokens. "
+                + "Limit fileModifications to the 3 most important changes per repository. "
+                + "Use short, concise values for all string fields.";
+        aiResponse = aiService.generateResponse(concisePrompt);
+        jsonContent = extractJson(aiResponse);
+
+        json = tryParseJson(jsonContent);
+        if (json != null) {
+            return parseRecommendationResponse(json, jiraKey);
+        }
+
+        // Final attempt — repair the retry response
+        repaired = repairTruncatedJson(jsonContent);
+        json = tryParseJson(repaired);
+        if (json != null) {
+            log.info("Successfully parsed repaired retry JSON");
+            return parseRecommendationResponse(json, jiraKey);
+        }
+
+        throw new AiAnalysisException(
+                "AI returned incomplete JSON that could not be repaired. "
+                        + "The response may have been truncated by the model's output token limit.");
+    }
+
+    /**
+     * Attempt to parse JSON, returning null instead of throwing on failure.
+     */
+    private JsonNode tryParseJson(String json) {
+        try {
+            return objectMapper.readTree(json);
+        } catch (JsonProcessingException ex) {
+            return null;
+        }
+    }
+
+    /**
+     * Attempt to repair truncated JSON by closing open strings, arrays, and objects.
+     * <p>
+     * This handles the common case where the AI model hits its output token limit
+     * mid-response, leaving unterminated JSON structures.
+     */
+    private String repairTruncatedJson(String json) {
+        if (json == null || json.isBlank()) {
+            return "{}";
+        }
+
+        StringBuilder sb = new StringBuilder(json);
+
+        // 1. If we're inside an unterminated string, close it
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = 0; i < sb.length(); i++) {
+            char c = sb.charAt(i);
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+            }
+        }
+        if (inString) {
+            sb.append('"');
+        }
+
+        // 2. Close open arrays and objects by scanning bracket depth
+        List<Character> openBrackets = new ArrayList<>();
+        inString = false;
+        escaped = false;
+        for (int i = 0; i < sb.length(); i++) {
+            char c = sb.charAt(i);
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) continue;
+            if (c == '{') openBrackets.add('}');
+            else if (c == '[') openBrackets.add(']');
+            else if (c == '}' || c == ']') {
+                if (!openBrackets.isEmpty()) {
+                    openBrackets.remove(openBrackets.size() - 1);
+                }
+            }
+        }
+
+        // 3. Remove any trailing partial key-value (e.g. ", \"someKey\": " with no value)
+        String current = sb.toString().stripTrailing();
+        // Remove trailing colon (key with no value)
+        if (current.endsWith(":")) {
+            current = current.substring(0, current.length() - 1).stripTrailing();
+            // Also remove the trailing key string
+            int lastQuote = current.lastIndexOf('"');
+            int secondLastQuote = current.lastIndexOf('"', lastQuote - 1);
+            if (secondLastQuote >= 0) {
+                current = current.substring(0, secondLastQuote).stripTrailing();
+            }
+        }
+        // Remove trailing comma
+        if (current.endsWith(",")) {
+            current = current.substring(0, current.length() - 1);
+        }
+        sb = new StringBuilder(current);
+
+        // 4. Append closing brackets in reverse order
+        for (int i = openBrackets.size() - 1; i >= 0; i--) {
+            sb.append(openBrackets.get(i));
+        }
+
+        log.debug("Repaired JSON length: {} (original: {})", sb.length(), json.length());
+        return sb.toString();
     }
 
     /**
