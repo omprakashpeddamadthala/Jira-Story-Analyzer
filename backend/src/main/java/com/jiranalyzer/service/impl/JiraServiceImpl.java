@@ -63,8 +63,15 @@ public class JiraServiceImpl implements JiraService {
             throw new JiraApiException("Failed to get current user info", ex);
         }
         
-        // Use accountId in JQL
-        String jql = "assignee = '" + accountId + "' AND project = 'SCRUM' AND statusCategory != 3";
+        // Build JQL dynamically based on settings
+        String projectKey = settingsService.getEffectiveProjectKey();
+        StringBuilder jqlBuilder = new StringBuilder();
+        jqlBuilder.append("assignee = '").append(accountId).append("'");
+        if (projectKey != null && !projectKey.isBlank()) {
+            jqlBuilder.append(" AND project = '").append(projectKey).append("'");
+        }
+        jqlBuilder.append(" AND statusCategory != 3");
+        String jql = jqlBuilder.toString();
         log.info("JQL query: {}", jql);
         
         String url = settingsService.getEffectiveBaseUrl() + "/rest/api/3/search/jql";
@@ -75,7 +82,12 @@ public class JiraServiceImpl implements JiraService {
             
             Map<String, Object> body = new HashMap<>();
             body.put("jql", jql);
-            body.put("fields", List.of("summary", "description", "status", "priority", "assignee", "issuetype"));
+            List<String> fieldsList = new ArrayList<>(List.of("summary", "description", "status", "priority", "assignee", "issuetype"));
+            String acField = settingsService.getEffectiveAcceptanceCriteriaField();
+            if (acField != null && !acField.isBlank()) {
+                fieldsList.add(acField);
+            }
+            body.put("fields", fieldsList);
             body.put("maxResults", 50);
             
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
@@ -93,8 +105,13 @@ public class JiraServiceImpl implements JiraService {
     public JiraStoryResponse fetchStoryByKey(String jiraKey) {
         log.info("Fetching Jira story by key: {}", jiraKey);
         String baseUrl = normalizeBaseUrl(settingsService.getEffectiveBaseUrl());
+        String acField = settingsService.getEffectiveAcceptanceCriteriaField();
+        String fields = "summary,description,status,priority,assignee,issuetype";
+        if (acField != null && !acField.isBlank()) {
+            fields += "," + acField;
+        }
         String url = baseUrl + "/rest/api/3/issue/" + jiraKey
-                + "?fields=summary,description,status,priority,assignee,issuetype";
+                + "?fields=" + fields;
 
         try {
             HttpEntity<String> entity = new HttpEntity<>(createAuthHeaders(settingsService.getEffectiveEmail(), settingsService.getEffectiveApiToken()));
@@ -195,15 +212,70 @@ public class JiraServiceImpl implements JiraService {
 
     private JiraStoryResponse parseSingleIssue(JsonNode issue) {
         JsonNode fields = issue.get("fields");
+        String description = extractDescription(fields != null ? fields.get("description") : null);
+        String acceptanceCriteria = extractAcceptanceCriteria(fields, description);
         return JiraStoryResponse.builder()
                 .key(getTextValue(issue, "key"))
                 .summary(getTextValue(fields, "summary"))
-                .description(extractDescription(fields != null ? fields.get("description") : null))
+                .description(description)
                 .status(getNestedTextValue(fields, "status", "name"))
                 .priority(getNestedTextValue(fields, "priority", "name"))
                 .assignee(getNestedTextValue(fields, "assignee", "displayName"))
                 .storyType(getNestedTextValue(fields, "issuetype", "name"))
+                .acceptanceCriteria(acceptanceCriteria)
                 .build();
+    }
+
+    /**
+     * Extracts acceptance criteria from:
+     * 1. A configured custom field (if set in settings), or
+     * 2. Parsing the description for common "Acceptance Criteria" section patterns.
+     */
+    private String extractAcceptanceCriteria(JsonNode fields, String description) {
+        // Try custom field first
+        String acField = settingsService.getEffectiveAcceptanceCriteriaField();
+        if (acField != null && !acField.isBlank() && fields != null && fields.has(acField)) {
+            JsonNode acNode = fields.get(acField);
+            if (acNode != null && !acNode.isNull()) {
+                if (acNode.isTextual()) {
+                    return acNode.asText();
+                }
+                // ADF format
+                StringBuilder text = new StringBuilder();
+                extractTextFromAdf(acNode, text);
+                String result = text.toString().trim();
+                if (!result.isEmpty()) {
+                    return result;
+                }
+            }
+        }
+
+        // Fall back to parsing from description
+        if (description != null && !description.isBlank()) {
+            return parseAcceptanceCriteriaFromDescription(description);
+        }
+        return "";
+    }
+
+    /**
+     * Parses acceptance criteria from the description text by looking for common
+     * section headers like "Acceptance Criteria", "AC:", etc.
+     */
+    private String parseAcceptanceCriteriaFromDescription(String description) {
+        String[] patterns = {
+            "(?i)(?:^|\\n)\\s*(?:acceptance criteria|ac)\\s*[:：]\\s*",
+            "(?i)(?:^|\\n)\\s*(?:##?\\s*acceptance criteria)\\s*\\n"
+        };
+        for (String pattern : patterns) {
+            String[] parts = description.split(pattern, 2);
+            if (parts.length == 2) {
+                String acSection = parts[1].trim();
+                // Stop at the next section header if present
+                String[] nextSection = acSection.split("(?i)(?:^|\\n)\\s*(?:##?\\s*|definition of done|dod|technical notes|notes)\\s*[:：]?", 2);
+                return nextSection[0].trim();
+            }
+        }
+        return "";
     }
 
     private String extractDescription(JsonNode descriptionNode) {

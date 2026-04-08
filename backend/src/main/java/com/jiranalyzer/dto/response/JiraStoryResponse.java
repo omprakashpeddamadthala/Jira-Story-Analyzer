@@ -20,4 +20,5 @@ public class JiraStoryResponse {
     private String priority;
     private String assignee;
     private String storyType;
+    private String acceptanceCriteria;
 }

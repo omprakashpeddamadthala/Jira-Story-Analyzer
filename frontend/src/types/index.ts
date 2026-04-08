@@ -6,6 +6,7 @@ export interface JiraStory {
   priority: string;
   assignee: string;
   storyType: string;
+  acceptanceCriteria?: string;
 }
 
 export interface AnalyzeStoryRequest {
@@ -59,6 +60,10 @@ export interface JiraConfigRequest {
   email: string;
   /** Blank = keep existing token */
   apiToken?: string;
+  /** Jira project key (e.g. "SCRUM"). Empty = all projects. */
+  projectKey?: string;
+  /** Custom field ID for acceptance criteria (e.g. "customfield_10028"). */
+  acceptanceCriteriaField?: string;
 }
 
 export interface JiraConfigResponse {
@@ -66,6 +71,8 @@ export interface JiraConfigResponse {
   email: string;
   apiTokenMasked: string;
   tokenConfigured: boolean;
+  projectKey: string;
+  acceptanceCriteriaField: string;
 }
 
 export interface ConnectionTestResult {

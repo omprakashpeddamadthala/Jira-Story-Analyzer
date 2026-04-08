@@ -49,16 +49,17 @@ export default function StoryForm({ selectedStory, onAnalysisComplete, onStreami
   const selectedStoryKey = selectedStory?.key ?? null;
   const selectedStorySummary = selectedStory?.summary ?? '';
   const selectedStoryDesc = selectedStory?.description ?? '';
+  const selectedStoryAC = selectedStory?.acceptanceCriteria ?? '';
 
   useEffect(() => {
     if (selectedStoryKey) {
       setTitle(selectedStorySummary);
       setDescription(selectedStoryDesc);
-      setAcceptanceCriteria('');
+      setAcceptanceCriteria(selectedStoryAC);
       setDefinitionOfDone('');
       setError(null);
     }
-  }, [selectedStoryKey, selectedStorySummary, selectedStoryDesc]);
+  }, [selectedStoryKey, selectedStorySummary, selectedStoryDesc, selectedStoryAC]);
 
   useEffect(() => {
     onStreamingUpdate(streaming);
