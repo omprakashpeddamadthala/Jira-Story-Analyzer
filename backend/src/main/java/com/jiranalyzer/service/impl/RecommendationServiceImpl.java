@@ -73,7 +73,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             - For "delete": filePath is the file to delete, searchContent and replaceContent are empty
             - Keep searchContent and replaceContent as focused snippets (not entire files)
 
-            CRITICAL: For filePath in fileModifications, you MUST use paths from the "Source Files" list below.
+            CRITICAL: For filePath in fileModifications, you MUST use paths from the "Source Files" list above.
             These are the actual files that exist in each repository. Do NOT invent or guess file paths.
             Only reference files that appear in the source files list.
             All paths must be relative to the repository root (e.g. "src/main/java/com/example/MyClass.java").
