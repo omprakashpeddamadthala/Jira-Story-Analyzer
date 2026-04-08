@@ -23,6 +23,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 
 @Service
 @Slf4j
@@ -298,6 +304,17 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
             }
 
             try {
+                // If the file doesn't exist at the given path, try to find it by name
+                if (!Files.exists(filePath) && !"create".equalsIgnoreCase(
+                        entry.getValue().get(0).getAction())) {
+                    Path resolved = findFileByName(repoRoot, filePath.getFileName().toString());
+                    if (resolved != null) {
+                        log.info("Resolved '{}' to '{}' via filename search", relPath, repoRoot.relativize(resolved));
+                        filePath = resolved;
+                        relPath = repoRoot.relativize(resolved).toString().replace('\\', '/');
+                    }
+                }
+
                 // Capture original content once before any modifications
                 String originalContent = Files.exists(filePath)
                         ? Files.readString(filePath, StandardCharsets.UTF_8) : "";
@@ -322,7 +339,7 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
                         }
                         default -> { // "modify"
                             if (!Files.exists(filePath)) {
-                                log.warn("File not found for modify: {}", filePath);
+                                log.warn("File not found for modify (even after search): {}", filePath);
                                 continue;
                             }
                             String currentContent = Files.readString(filePath, StandardCharsets.UTF_8);
@@ -362,6 +379,56 @@ public class ChangeApplyServiceImpl implements ChangeApplyService {
             }
         }
         return anyApplied;
+    }
+
+    private static final Set<String> FIND_IGNORED_DIRS = Set.of(
+            "node_modules", "target", "build", "dist", "out",
+            "vendor", "bin", "__pycache__", "coverage");
+
+    /**
+     * Search for a file by name within the repo directory tree.
+     * Uses FileVisitor with SKIP_SUBTREE to avoid traversing ignored
+     * directories (.git, node_modules, target, etc.) for performance.
+     * Returns the first match or null if not found.
+     */
+    private Path findFileByName(Path repoRoot, String fileName) {
+        AtomicReference<Path> result = new AtomicReference<>();
+        try {
+            Files.walkFileTree(repoRoot, Set.of(), 8, new FileVisitor<Path>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    if (result.get() != null) return FileVisitResult.TERMINATE;
+                    if (dir.equals(repoRoot)) return FileVisitResult.CONTINUE;
+                    String dirName = dir.getFileName().toString();
+                    if (dirName.startsWith(".") || FIND_IGNORED_DIRS.contains(dirName)) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (file.getFileName().toString().equals(fileName)) {
+                        result.set(file);
+                        return FileVisitResult.TERMINATE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
+                    return result.get() != null ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException ex) {
+            log.warn("File search failed for '{}': {}", fileName, ex.getMessage());
+        }
+        return result.get();
     }
 
     /**

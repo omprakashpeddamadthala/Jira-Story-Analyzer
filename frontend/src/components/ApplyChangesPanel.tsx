@@ -25,6 +25,8 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   CompareArrows as DiffIcon,
+  InsertDriveFileOutlined as FileIcon,
+  WarningAmber as WarningIcon,
 } from '@mui/icons-material';
 import type { ChangeItem, ApplyChangesResponse, FileChange } from '../types';
 import { changesApi } from '../services/api';
@@ -171,6 +173,41 @@ export default function ApplyChangesPanel({ jiraKey, storyTitle, changes, onComp
                 </Typography>
               )}
 
+              {/* Summary counts */}
+              {(() => {
+                const successCount = result.results.filter(r => r.success && r.modifiedFiles.length > 0).length;
+                const failCount = result.results.filter(r => !r.success).length;
+                const noChangeCount = result.results.filter(r => r.success && r.modifiedFiles.length === 0).length;
+                return (
+                  <Box display="flex" gap={1.5} mb={2}>
+                    {successCount > 0 && (
+                      <Chip
+                        icon={<SuccessIcon sx={{ fontSize: '16px !important' }} />}
+                        label={`${successCount} succeeded`}
+                        size="small"
+                        sx={{ bgcolor: alpha(colors.success, 0.1), color: colors.success, fontWeight: 600 }}
+                      />
+                    )}
+                    {failCount > 0 && (
+                      <Chip
+                        icon={<ErrorIcon sx={{ fontSize: '16px !important' }} />}
+                        label={`${failCount} failed`}
+                        size="small"
+                        sx={{ bgcolor: alpha(colors.error, 0.1), color: colors.error, fontWeight: 600 }}
+                      />
+                    )}
+                    {noChangeCount > 0 && (
+                      <Chip
+                        icon={<WarningIcon sx={{ fontSize: '16px !important' }} />}
+                        label={`${noChangeCount} no changes`}
+                        size="small"
+                        sx={{ bgcolor: alpha(colors.tertiary, 0.1), color: colors.tertiary, fontWeight: 600 }}
+                      />
+                    )}
+                  </Box>
+                );
+              })()}
+
               {result.results.map((repoResult, index) => (
                 <Box
                   key={index}
@@ -195,26 +232,58 @@ export default function ApplyChangesPanel({ jiraKey, storyTitle, changes, onComp
                       <Chip label={repoResult.branchName} size="small" variant="outlined" sx={{ height: 22, fontSize: '0.65rem' }} />
                     )}
                   </Box>
-                  <Typography
-                    sx={{
-                      fontSize: '0.8rem',
-                      color: colors.onSurfaceVariant,
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {repoResult.message}
-                  </Typography>
+
+                  {/* Status message with appropriate styling */}
+                  {!repoResult.success && (
+                    <Alert
+                      severity="error"
+                      variant="outlined"
+                      sx={{ mt: 1, mb: 1, py: 0.5, '& .MuiAlert-message': { fontSize: '0.8rem' } }}
+                    >
+                      {repoResult.message}
+                    </Alert>
+                  )}
+                  {repoResult.success && repoResult.modifiedFiles.length === 0 && (
+                    <Alert
+                      severity="warning"
+                      variant="outlined"
+                      sx={{ mt: 1, mb: 1, py: 0.5, '& .MuiAlert-message': { fontSize: '0.8rem' } }}
+                    >
+                      {repoResult.message || 'No files were modified. The AI-generated file paths may not match the actual repository structure.'}
+                    </Alert>
+                  )}
+                  {repoResult.success && repoResult.modifiedFiles.length > 0 && (
+                    <Typography
+                      sx={{ fontSize: '0.8rem', color: colors.success, mt: 0.5, fontWeight: 500 }}
+                    >
+                      {repoResult.message}
+                    </Typography>
+                  )}
+
+                  {/* Modified files list */}
                   {repoResult.modifiedFiles.length > 0 && (
-                    <Box display="flex" gap={0.5} flexWrap="wrap" mt={0.75}>
-                      {repoResult.modifiedFiles.map((file) => (
-                        <Chip key={file} label={file} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.62rem' }} />
-                      ))}
+                    <Box mt={1}>
+                      <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: colors.onSurfaceVariant, mb: 0.5 }}>
+                        Modified Files ({repoResult.modifiedFiles.length})
+                      </Typography>
+                      <Box display="flex" gap={0.5} flexWrap="wrap">
+                        {repoResult.modifiedFiles.map((file) => (
+                          <Chip
+                            key={file}
+                            icon={<FileIcon sx={{ fontSize: '14px !important' }} />}
+                            label={file}
+                            size="small"
+                            variant="outlined"
+                            sx={{ height: 24, fontSize: '0.68rem' }}
+                          />
+                        ))}
+                      </Box>
                     </Box>
                   )}
+
                   {repoResult.commitHash && (
-                    <Typography sx={{ fontSize: '0.72rem', color: colors.onSurfaceVariant, mt: 0.5 }}>
-                      Commit: {repoResult.commitHash}
+                    <Typography sx={{ fontSize: '0.72rem', color: colors.onSurfaceVariant, mt: 0.75 }}>
+                      Commit: <code style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.7rem' }}>{repoResult.commitHash}</code>
                     </Typography>
                   )}
 

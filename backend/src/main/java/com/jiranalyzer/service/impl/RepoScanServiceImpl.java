@@ -105,12 +105,16 @@ public class RepoScanServiceImpl implements RepoScanService {
                 || Files.exists(dir.resolve("Makefile"));
     }
 
+    /** Max number of source file paths to collect per repo for AI context. */
+    private static final int MAX_SOURCE_FILES = 200;
+
     private RepoInfo analyzeRepo(Path repoPath) throws IOException {
         String name = repoPath.getFileName().toString();
         Set<String> languages = new HashSet<>();
         Set<String> frameworks = new HashSet<>();
         List<String> entryPoints = new ArrayList<>();
         List<String> keyModules = new ArrayList<>();
+        List<String> sourceFiles = new ArrayList<>();
         String packageManager = "unknown";
         int[] counts = {0, 0}; // [files, dirs]
 
@@ -162,8 +166,8 @@ public class RepoScanServiceImpl implements RepoScanService {
             }
         }
 
-        // Deep scan for languages and counts
-        scanDeep(repoPath, languages, entryPoints, keyModules, counts, 0);
+        // Deep scan for languages, counts, and source file paths
+        scanDeep(repoPath, repoPath, languages, entryPoints, keyModules, sourceFiles, counts, 0);
 
         DirectoryStructure structure = DirectoryStructure.builder()
                 .name(name)
@@ -182,11 +186,13 @@ public class RepoScanServiceImpl implements RepoScanService {
                 .structure(structure)
                 .totalFiles(counts[0])
                 .totalDirectories(counts[1])
+                .sourceFiles(sourceFiles)
                 .build();
     }
 
-    private void scanDeep(Path dir, Set<String> languages, List<String> entryPoints,
-                          List<String> keyModules, int[] counts, int depth) throws IOException {
+    private void scanDeep(Path dir, Path repoRoot, Set<String> languages, List<String> entryPoints,
+                          List<String> keyModules, List<String> sourceFiles,
+                          int[] counts, int depth) throws IOException {
         if (depth > 6) return; // Limit recursion depth
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
@@ -200,7 +206,7 @@ public class RepoScanServiceImpl implements RepoScanService {
                     if (depth <= 2 && isKeyModule(childName)) {
                         keyModules.add(dir.relativize(child).toString());
                     }
-                    scanDeep(child, languages, entryPoints, keyModules, counts, depth + 1);
+                    scanDeep(child, repoRoot, languages, entryPoints, keyModules, sourceFiles, counts, depth + 1);
                 } else {
                     if (isIgnoredFile(childName)) continue;
                     try {
@@ -212,6 +218,11 @@ public class RepoScanServiceImpl implements RepoScanService {
                     detectLanguage(childName, languages);
                     if (isEntryPoint(childName) && entryPoints.size() < 10) {
                         entryPoints.add(dir.relativize(child).toString());
+                    }
+                    // Collect source file relative paths for AI context
+                    if (sourceFiles.size() < MAX_SOURCE_FILES && isSourceFile(childName)) {
+                        String relPath = repoRoot.relativize(child).toString().replace('\\', '/');
+                        sourceFiles.add(relPath);
                     }
                 }
             }
@@ -246,6 +257,19 @@ public class RepoScanServiceImpl implements RepoScanService {
         else if (fileName.endsWith(".kt") || fileName.endsWith(".kts")) languages.add("Kotlin");
         else if (fileName.endsWith(".scala")) languages.add("Scala");
         else if (fileName.endsWith(".cpp") || fileName.endsWith(".cc") || fileName.endsWith(".h")) languages.add("C/C++");
+    }
+
+    private boolean isSourceFile(String fileName) {
+        String lower = fileName.toLowerCase();
+        return lower.endsWith(".java") || lower.endsWith(".ts") || lower.endsWith(".tsx")
+                || lower.endsWith(".js") || lower.endsWith(".jsx") || lower.endsWith(".py")
+                || lower.endsWith(".go") || lower.endsWith(".rs") || lower.endsWith(".rb")
+                || lower.endsWith(".cs") || lower.endsWith(".kt") || lower.endsWith(".kts")
+                || lower.endsWith(".scala") || lower.endsWith(".cpp") || lower.endsWith(".cc")
+                || lower.endsWith(".h") || lower.endsWith(".yaml") || lower.endsWith(".yml")
+                || lower.endsWith(".xml") || lower.endsWith(".json") || lower.endsWith(".properties")
+                || lower.endsWith(".sql") || lower.endsWith(".html") || lower.endsWith(".css")
+                || lower.endsWith(".scss") || lower.endsWith(".graphql");
     }
 
     private boolean isIgnoredFile(String fileName) {

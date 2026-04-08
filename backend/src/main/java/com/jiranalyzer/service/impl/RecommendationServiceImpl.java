@@ -73,7 +73,10 @@ public class RecommendationServiceImpl implements RecommendationService {
             - For "delete": filePath is the file to delete, searchContent and replaceContent are empty
             - Keep searchContent and replaceContent as focused snippets (not entire files)
 
-            Be specific about file paths and code changes. Use the actual structure from the repo context.
+            CRITICAL: For filePath in fileModifications, you MUST use paths from the "Source Files" list above.
+            These are the actual files that exist in each repository. Do NOT invent or guess file paths.
+            Only reference files that appear in the source files list.
+            All paths must be relative to the repository root (e.g. "src/main/java/com/example/MyClass.java").
             Return ONLY the JSON object, no markdown fences, no extra text.
             """;
 
@@ -149,6 +152,12 @@ public class RecommendationServiceImpl implements RecommendationService {
                 if (repo.getStructure().getTopLevelFiles() != null) {
                     sb.append("- Top-level files: ")
                             .append(String.join(", ", repo.getStructure().getTopLevelFiles())).append("\n");
+                }
+            }
+            if (repo.getSourceFiles() != null && !repo.getSourceFiles().isEmpty()) {
+                sb.append("- Source Files (use these exact paths in fileModifications):\n");
+                for (String file : repo.getSourceFiles()) {
+                    sb.append("  - ").append(file).append("\n");
                 }
             }
             sb.append("\n");

@@ -35,6 +35,8 @@ public class RepoScanResponse {
         private DirectoryStructure structure;
         private int totalFiles;
         private int totalDirectories;
+        /** Relative paths of source files (capped for context size). */
+        private List<String> sourceFiles;
     }
 
     @Getter
