@@ -146,6 +146,9 @@ export interface GenerateRecommendationsRequest {
   acceptanceCriteria: string;
   folderPath: string;
   jiraKey?: string;
+  /** Full rephrased/refined story text (markdown). When provided, the backend
+   *  uses this instead of the raw title/description/acceptanceCriteria fields. */
+  rephrasedStory?: string;
 }
 
 export interface FileModification {
