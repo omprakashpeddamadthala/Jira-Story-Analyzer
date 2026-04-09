@@ -10,16 +10,12 @@ import {
   Alert,
   Fade,
   Chip,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   LinearProgress,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
   FolderOpen as FolderIcon,
   Search as ScanIcon,
-  ExpandMore as ExpandMoreIcon,
   Code as CodeIcon,
   Storage as StorageIcon,
   Description as FileIcon,
@@ -187,9 +183,21 @@ export default function RepoScanner({ onScanComplete }: RepoScannerProps) {
                 Folder: {scanResult.folderPath}
               </Typography>
 
-              {scanResult.repositories.map((repo) => (
-                <RepoInfoCard key={repo.name} repo={repo} />
-              ))}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    lg: 'repeat(3, 1fr)',
+                  },
+                  gap: 2,
+                }}
+              >
+                {scanResult.repositories.map((repo) => (
+                  <RepoInfoCard key={repo.name} repo={repo} />
+                ))}
+              </Box>
 
               {scanResult.repositories.length === 0 && (
                 <Box textAlign="center" py={3}>
@@ -208,92 +216,55 @@ export default function RepoScanner({ onScanComplete }: RepoScannerProps) {
 
 function RepoInfoCard({ repo }: { repo: RepoInfo }) {
   return (
-    <Accordion
+    <Card
       sx={{
-        mb: 1,
-        '&:before': { display: 'none' },
-        borderRadius: '12px !important',
+        borderRadius: '12px',
         border: `1px solid ${alpha(colors.outlineVariant, 0.5)}`,
         boxShadow: 'none',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      <AccordionSummary
-        expandIcon={<ExpandMoreIcon />}
-        sx={{ px: 2, py: 0.5 }}
-      >
-        <Box display="flex" alignItems="center" gap={1.5} flex={1}>
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <Box display="flex" alignItems="center" gap={1} mb={1.5}>
           <CodeIcon sx={{ color: colors.primary, fontSize: 20 }} />
-          <Box flex={1}>
-            <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', color: colors.onSurface }}>
-              {repo.name}
-            </Typography>
-            <Box display="flex" gap={0.5} flexWrap="wrap" mt={0.5}>
-              {repo.languages.map((lang) => (
-                <Chip key={lang} label={lang} size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
-              ))}
-              {repo.frameworks.map((fw) => (
-                <Chip key={fw} label={fw} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
-              ))}
-            </Box>
-          </Box>
-          <Box textAlign="right" sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <Typography sx={{ fontSize: '0.72rem', color: colors.onSurfaceVariant }}>
-              {repo.totalFiles} files · {repo.totalDirectories} dirs
-            </Typography>
-          </Box>
+          <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: colors.onSurface, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {repo.name}
+          </Typography>
         </Box>
-      </AccordionSummary>
-      <AccordionDetails sx={{ px: 2, pt: 0 }}>
-        <Box display="flex" flexDirection="column" gap={1}>
+
+        {/* Languages & Frameworks */}
+        <Box display="flex" gap={0.5} flexWrap="wrap" mb={1.5}>
+          {repo.languages.map((lang) => (
+            <Chip key={lang} label={lang} size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha(colors.primary, 0.08), color: colors.primary, fontWeight: 600 }} />
+          ))}
+          {repo.frameworks.map((fw) => (
+            <Chip key={fw} label={fw} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+          ))}
+        </Box>
+
+        {/* Stats */}
+        <Box display="flex" gap={2} mb={1}>
+          <Typography sx={{ fontSize: '0.72rem', color: colors.onSurfaceVariant }}>
+            <FileIcon sx={{ fontSize: 12, verticalAlign: 'middle', mr: 0.3 }} />
+            {repo.totalFiles} files
+          </Typography>
+          <Typography sx={{ fontSize: '0.72rem', color: colors.onSurfaceVariant }}>
+            <FolderIcon sx={{ fontSize: 12, verticalAlign: 'middle', mr: 0.3 }} />
+            {repo.totalDirectories} dirs
+          </Typography>
+        </Box>
+
+        {/* Details */}
+        <Box display="flex" flexDirection="column" gap={0.5}>
           <DetailRow label="Path" value={repo.path} />
-          <DetailRow label="Package Manager" value={repo.packageManager} />
-          {repo.entryPoints.length > 0 && (
-            <DetailRow label="Entry Points" value={repo.entryPoints.join(', ')} />
-          )}
+          <DetailRow label="Pkg Mgr" value={repo.packageManager} />
           {repo.keyModules.length > 0 && (
-            <DetailRow label="Key Modules" value={repo.keyModules.join(', ')} />
-          )}
-          {repo.structure && (
-            <>
-              {repo.structure.topLevelDirs.length > 0 && (
-                <Box display="flex" gap={0.5} flexWrap="wrap" alignItems="center">
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: colors.onSurfaceVariant, minWidth: 90 }}>
-                    Directories:
-                  </Typography>
-                  {repo.structure.topLevelDirs.map((dir) => (
-                    <Chip
-                      key={dir}
-                      icon={<FolderIcon sx={{ fontSize: '14px !important' }} />}
-                      label={dir}
-                      size="small"
-                      variant="outlined"
-                      sx={{ height: 22, fontSize: '0.68rem' }}
-                    />
-                  ))}
-                </Box>
-              )}
-              {repo.structure.topLevelFiles.length > 0 && (
-                <Box display="flex" gap={0.5} flexWrap="wrap" alignItems="center">
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: colors.onSurfaceVariant, minWidth: 90 }}>
-                    Files:
-                  </Typography>
-                  {repo.structure.topLevelFiles.map((file) => (
-                    <Chip
-                      key={file}
-                      icon={<FileIcon sx={{ fontSize: '14px !important' }} />}
-                      label={file}
-                      size="small"
-                      variant="outlined"
-                      sx={{ height: 22, fontSize: '0.68rem' }}
-                    />
-                  ))}
-                </Box>
-              )}
-            </>
+            <DetailRow label="Modules" value={repo.keyModules.slice(0, 3).join(', ') + (repo.keyModules.length > 3 ? ` +${repo.keyModules.length - 3}` : '')} />
           )}
         </Box>
-      </AccordionDetails>
-    </Accordion>
+      </CardContent>
+    </Card>
   );
 }
 
