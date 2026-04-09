@@ -590,7 +590,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             return responses.get(0);
         }
 
-        String bestSummary = "No summary provided";
+        String bestSummary = "";
         Set<String> impactedRepos = new LinkedHashSet<>();
         List<ChangeRecommendation> allChanges = new ArrayList<>();
 
@@ -605,6 +605,10 @@ public class RecommendationServiceImpl implements RecommendationService {
             if (r.getChanges() != null) {
                 allChanges.addAll(r.getChanges());
             }
+        }
+
+        if (bestSummary.isEmpty()) {
+            bestSummary = "No summary provided";
         }
         log.info("Merged {} partial responses — {} total changes across {} repos",
                 responses.size(), allChanges.size(), impactedRepos.size());
