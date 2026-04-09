@@ -182,9 +182,19 @@ public class RecommendationServiceImpl implements RecommendationService {
 
         RepoScanResponse scanResult = repoScanService.getCachedScan(request.getFolderPath());
 
+        // Validate that at least one valid input set is present
+        boolean hasRephrasedStory = request.getRephrasedStory() != null
+                && !request.getRephrasedStory().isBlank();
+        boolean hasLegacyFields = request.getTitle() != null && !request.getTitle().isBlank()
+                && request.getDescription() != null && !request.getDescription().isBlank();
+
+        if (!hasRephrasedStory && !hasLegacyFields) {
+            throw new IllegalArgumentException(
+                    "Either rephrasedStory or both title and description must be provided.");
+        }
+
         try {
-            boolean useRephrased = request.getRephrasedStory() != null
-                    && !request.getRephrasedStory().isBlank();
+            boolean useRephrased = hasRephrasedStory;
 
             // Build the full prompt to check if it fits within the token limit
             String fullRepoContext = buildRepoContextString(scanResult);
