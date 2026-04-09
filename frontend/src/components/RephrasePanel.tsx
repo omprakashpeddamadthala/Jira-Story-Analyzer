@@ -30,7 +30,7 @@ interface RephrasePanelProps {
   description: string;
   acceptanceCriteria: string;
   onUseRephrased: (title: string, description: string, ac: string) => void;
-  onRephraseComplete?: () => void;
+  onRephraseComplete?: (refinedStory?: string) => void;
   disabled?: boolean;
 }
 
@@ -64,7 +64,7 @@ export default function RephrasePanel({
         acceptanceCriteria: acceptanceCriteria.trim(),
       });
       setResult(response);
-      onRephraseComplete?.();
+      onRephraseComplete?.(response.refinedStory);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to rephrase story');
     } finally {
@@ -174,7 +174,6 @@ export default function RephrasePanel({
                     borderRadius: 2,
                     bgcolor: alpha(colors.success, 0.04),
                     border: `1px solid ${alpha(colors.success, 0.12)}`,
-                    maxHeight: 400,
                     overflow: 'auto',
                     '& h1, & h2, & h3': {
                       fontFamily: '"Manrope", sans-serif',

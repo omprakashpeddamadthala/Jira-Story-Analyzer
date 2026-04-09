@@ -14,10 +14,8 @@ import lombok.Setter;
 @Builder
 public class GenerateRecommendationsRequest {
 
-    @NotBlank(message = "Title is required")
     private String title;
 
-    @NotBlank(message = "Description is required")
     private String description;
 
     private String acceptanceCriteria;
@@ -26,4 +24,11 @@ public class GenerateRecommendationsRequest {
     private String folderPath;
 
     private String jiraKey;
+
+    /**
+     * The full rephrased/refined story text (markdown).
+     * When provided, the recommendation prompt uses this instead of
+     * the raw title / description / acceptanceCriteria fields.
+     */
+    private String rephrasedStory;
 }

@@ -27,10 +27,22 @@ import type { RecommendationResponse, ChangeRecommendation, RepoScanResponse, Ch
 import { recommendationApi } from '../services/api';
 import { colors, gradients } from '../theme/theme';
 
+/** Group changes by repo name, preserving original indices for approve/reject tracking */
+function groupChangesByRepo(changes: ChangeRecommendation[]): [string, { change: ChangeRecommendation; originalIndex: number }[]][] {
+  const map = new Map<string, { change: ChangeRecommendation; originalIndex: number }[]>();
+  changes.forEach((change, index) => {
+    const key = change.repo;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push({ change, originalIndex: index });
+  });
+  return Array.from(map.entries());
+}
+
 interface RecommendationPanelProps {
   title: string;
   description: string;
   acceptanceCriteria: string;
+  rephrasedStory?: string;
   jiraKey?: string;
   scanResult: RepoScanResponse | null;
   onApprove?: (changes: ChangeItem[]) => void;
@@ -40,6 +52,7 @@ export default function RecommendationPanel({
   title,
   description,
   acceptanceCriteria,
+  rephrasedStory,
   jiraKey,
   scanResult,
   onApprove,
@@ -55,8 +68,8 @@ export default function RecommendationPanel({
       setError('Please scan a folder first');
       return;
     }
-    if (!title.trim() || !description.trim()) {
-      setError('Title and Description are required');
+    if (!rephrasedStory?.trim()) {
+      setError('Please rephrase the story first');
       return;
     }
 
@@ -73,6 +86,7 @@ export default function RecommendationPanel({
         acceptanceCriteria: acceptanceCriteria.trim(),
         folderPath: scanResult.folderPath,
         jiraKey,
+        rephrasedStory: rephrasedStory.trim(),
       });
       setResult(response);
     } catch (err) {
@@ -141,7 +155,7 @@ export default function RecommendationPanel({
       <Button
         variant="contained"
         onClick={handleGenerate}
-        disabled={loading || !scanResult || !title.trim()}
+        disabled={loading || !scanResult || !rephrasedStory?.trim()}
         startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <RecommendIcon />}
         sx={{
           py: 1.3,
@@ -166,7 +180,7 @@ export default function RecommendationPanel({
         <Fade in timeout={500}>
           <Card sx={{ border: `1px solid ${alpha(colors.primary, 0.2)}` }}>
             <CardContent sx={{ p: 3 }}>
-              {/* Summary */}
+              {/* Overall Summary */}
               <Box mb={2}>
                 <Typography
                   sx={{
@@ -177,40 +191,37 @@ export default function RecommendationPanel({
                     mb: 1,
                   }}
                 >
-                  Recommendations Summary
+                  Overall Summary
                 </Typography>
                 <Typography sx={{ fontSize: '0.88rem', color: colors.onSurfaceVariant, lineHeight: 1.7 }}>
                   {result.summary}
                 </Typography>
               </Box>
 
-              {/* Impacted Repos */}
-              {result.impactedRepos.length > 0 && (
-                <Box mb={2}>
-                  <Typography sx={{ fontWeight: 600, fontSize: '0.78rem', color: colors.onSurfaceVariant, mb: 0.5 }}>
-                    Impacted Repositories
-                  </Typography>
-                  <Box display="flex" gap={0.5} flexWrap="wrap">
-                    {result.impactedRepos.map((repo) => (
-                      <Chip key={repo} label={repo} size="small" sx={{ bgcolor: alpha(colors.primary, 0.1), color: colors.primary, fontWeight: 600 }} />
-                    ))}
+              {/* Per-repo breakdown */}
+              {groupChangesByRepo(result.changes).map(([repo, repoChanges]) => (
+                <Box key={repo} mb={2}>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <Chip
+                      label={repo}
+                      size="small"
+                      sx={{ bgcolor: alpha(colors.primary, 0.1), color: colors.primary, fontWeight: 700, fontSize: '0.8rem' }}
+                    />
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>
+                      {repoChanges.length} change{repoChanges.length !== 1 ? 's' : ''}
+                    </Typography>
                   </Box>
+                  {repoChanges.map(({ change, originalIndex }) => (
+                    <ChangeCard
+                      key={originalIndex}
+                      change={change}
+                      approved={approvedIndices.has(originalIndex)}
+                      rejected={rejectedIndices.has(originalIndex)}
+                      onApprove={() => toggleApprove(originalIndex)}
+                      onReject={() => toggleReject(originalIndex)}
+                    />
+                  ))}
                 </Box>
-              )}
-
-              {/* Changes */}
-              <Typography sx={{ fontWeight: 600, fontSize: '0.82rem', color: colors.onSurfaceVariant, mb: 1 }}>
-                Changes ({result.changes.length})
-              </Typography>
-              {result.changes.map((change, index) => (
-                <ChangeCard
-                  key={index}
-                  change={change}
-                  approved={approvedIndices.has(index)}
-                  rejected={rejectedIndices.has(index)}
-                  onApprove={() => toggleApprove(index)}
-                  onReject={() => toggleReject(index)}
-                />
               ))}
 
               {/* Apply Button */}
