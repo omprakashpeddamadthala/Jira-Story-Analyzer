@@ -27,7 +27,74 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final RepoScanService repoScanService;
     private final ObjectMapper objectMapper;
 
-    private static final String RECOMMENDATION_PROMPT = """
+    /**
+     * Prompt template used when a rephrased story is available.
+     * Accepts two placeholders: %s for the rephrased story and %s for the repo context.
+     */
+    private static final String RECOMMENDATION_PROMPT_REPHRASED = """
+            You are an expert software architect and developer. Analyze the following \
+            refined JIRA story and the scanned repository context, then generate specific \
+            change recommendations grouped by repository.
+
+            ## Refined Story
+            %s
+
+            ## Repository Context
+            %s
+
+            ## Instructions
+            Based on the refined story and the repository structure, generate a JSON response with:
+            1. A concise overall summary (one paragraph) of the recommended work across all repos
+            2. Which repositories are impacted
+            3. Specific file-level changes grouped by repository, with rationale, risk assessment, \
+            and structured modifications
+
+            IMPORTANT: The "summary" field must be a single, non-repetitive overview paragraph. \
+            Do NOT repeat the story title or description in the summary. Focus on what actions \
+            are recommended and why.
+
+            IMPORTANT: Return ONLY valid JSON matching this exact schema:
+            {
+              "summary": "Concise overall summary of recommended changes across all repos",
+              "impactedRepos": ["repo-name-1", "repo-name-2"],
+              "changes": [
+                {
+                  "repo": "repo-name",
+                  "files": ["path/to/file1.java", "path/to/file2.ts"],
+                  "rationale": "Why this change is needed",
+                  "risk": "low|medium|high",
+                  "patch": "Human-readable description of the code changes",
+                  "fileModifications": [
+                    {
+                      "filePath": "path/to/file1.java",
+                      "action": "modify",
+                      "searchContent": "exact original code snippet to find",
+                      "replaceContent": "replacement code snippet"
+                    }
+                  ]
+                }
+              ]
+            }
+
+            For fileModifications:
+            - action must be "modify", "create", or "delete"
+            - For "modify": searchContent is the exact code to find, replaceContent is the replacement
+            - For "create": filePath is the new file, replaceContent is the full file content, searchContent is empty
+            - For "delete": filePath is the file to delete, searchContent and replaceContent are empty
+            - Keep searchContent and replaceContent as focused snippets (not entire files)
+
+            CRITICAL: For filePath in fileModifications, you MUST use paths from the "Source Files" list above.
+            These are the actual files that exist in each repository. Do NOT invent or guess file paths.
+            Only reference files that appear in the source files list.
+            All paths must be relative to the repository root (e.g. "src/main/java/com/example/MyClass.java").
+            Return ONLY the JSON object, no markdown fences, no extra text.
+            """;
+
+    /**
+     * Legacy prompt template used when only raw title/description/AC fields are available.
+     * Accepts four placeholders: title, description, acceptanceCriteria, repoContext.
+     */
+    private static final String RECOMMENDATION_PROMPT_LEGACY = """
             You are an expert software architect and developer. Analyze the following Jira story requirements \
             and the scanned repository context, then generate specific change recommendations.
 
@@ -41,13 +108,18 @@ public class RecommendationServiceImpl implements RecommendationService {
 
             ## Instructions
             Based on the story requirements and the repository structure, generate a JSON response with:
-            1. A high-level summary of what needs to change
+            1. A concise overall summary (one paragraph) of the recommended work across all repos
             2. Which repositories are impacted
-            3. Specific file-level changes with rationale, risk assessment, and structured modifications
+            3. Specific file-level changes grouped by repository, with rationale, risk assessment, \
+            and structured modifications
+
+            IMPORTANT: The "summary" field must be a single, non-repetitive overview paragraph. \
+            Do NOT repeat the story title or description in the summary. Focus on what actions \
+            are recommended and why.
 
             IMPORTANT: Return ONLY valid JSON matching this exact schema:
             {
-              "summary": "High-level summary of recommended changes",
+              "summary": "Concise overall summary of recommended changes across all repos",
               "impactedRepos": ["repo-name-1", "repo-name-2"],
               "changes": [
                 {
@@ -111,17 +183,18 @@ public class RecommendationServiceImpl implements RecommendationService {
         RepoScanResponse scanResult = repoScanService.getCachedScan(request.getFolderPath());
 
         try {
-            String ac = request.getAcceptanceCriteria() != null
-                    && !request.getAcceptanceCriteria().isBlank()
-                    ? request.getAcceptanceCriteria() : "Not provided";
+            boolean useRephrased = request.getRephrasedStory() != null
+                    && !request.getRephrasedStory().isBlank();
 
             // Build the full prompt to check if it fits within the token limit
             String fullRepoContext = buildRepoContextString(scanResult);
-            String fullPrompt = String.format(RECOMMENDATION_PROMPT,
-                    request.getTitle(), request.getDescription(), ac, fullRepoContext);
+            String fullPrompt = useRephrased
+                    ? buildRephrasedPrompt(request.getRephrasedStory(), fullRepoContext)
+                    : buildLegacyPrompt(request, fullRepoContext);
 
             int estimatedTokens = estimateTokenCount(fullPrompt);
-            log.info("Estimated prompt tokens: {} (limit: {})", estimatedTokens, MAX_PROMPT_TOKENS);
+            log.info("Estimated prompt tokens: {} (limit: {}), mode={}",
+                    estimatedTokens, MAX_PROMPT_TOKENS, useRephrased ? "rephrased" : "legacy");
 
             if (estimatedTokens <= MAX_PROMPT_TOKENS) {
                 // Single call — fits within the token limit
@@ -130,14 +203,17 @@ public class RecommendationServiceImpl implements RecommendationService {
 
             // Chunked approach — split repo context and make multiple AI calls
             log.info("Prompt exceeds token limit, splitting into chunks");
-            List<String> contextChunks = splitRepoContext(scanResult, request.getTitle(),
-                    request.getDescription(), ac);
+            List<String> contextChunks = useRephrased
+                    ? splitRepoContextRephrased(scanResult, request.getRephrasedStory())
+                    : splitRepoContext(scanResult, request.getTitle(),
+                            request.getDescription(), safeAc(request));
             log.info("Split into {} chunk(s)", contextChunks.size());
 
             List<RecommendationResponse> partialResponses = new ArrayList<>();
             for (int i = 0; i < contextChunks.size(); i++) {
-                String chunkPrompt = String.format(RECOMMENDATION_PROMPT,
-                        request.getTitle(), request.getDescription(), ac, contextChunks.get(i));
+                String chunkPrompt = useRephrased
+                        ? buildRephrasedPrompt(request.getRephrasedStory(), contextChunks.get(i))
+                        : buildLegacyPrompt(request, contextChunks.get(i));
                 log.info("Processing chunk {}/{} — estimated tokens: {}",
                         i + 1, contextChunks.size(), estimateTokenCount(chunkPrompt));
                 partialResponses.add(callAiAndParse(chunkPrompt, request.getJiraKey()));
@@ -150,6 +226,21 @@ public class RecommendationServiceImpl implements RecommendationService {
             log.error("Failed to generate recommendations: {}", ex.getMessage(), ex);
             throw new AiAnalysisException("Failed to generate recommendations: " + ex.getMessage(), ex);
         }
+    }
+
+    private String buildRephrasedPrompt(String rephrasedStory, String repoContext) {
+        return String.format(RECOMMENDATION_PROMPT_REPHRASED, rephrasedStory, repoContext);
+    }
+
+    private String buildLegacyPrompt(GenerateRecommendationsRequest request, String repoContext) {
+        return String.format(RECOMMENDATION_PROMPT_LEGACY,
+                request.getTitle(), request.getDescription(), safeAc(request), repoContext);
+    }
+
+    private String safeAc(GenerateRecommendationsRequest request) {
+        return request.getAcceptanceCriteria() != null
+                && !request.getAcceptanceCriteria().isBlank()
+                ? request.getAcceptanceCriteria() : "Not provided";
     }
 
     /**
@@ -317,13 +408,33 @@ public class RecommendationServiceImpl implements RecommendationService {
      * Repositories are kept whole when possible. If a single repository's context
      * still exceeds the budget, its source-file list is truncated to fit.
      */
-    private List<String> splitRepoContext(RepoScanResponse scanResult, String title,
-                                          String description, String ac) {
-        // Calculate the overhead — everything in the prompt except the repo context placeholder
-        String overhead = String.format(RECOMMENDATION_PROMPT, title, description, ac, "");
+    /**
+     * Split repo context into chunks for the rephrased-story prompt variant.
+     */
+    private List<String> splitRepoContextRephrased(RepoScanResponse scanResult,
+                                                    String rephrasedStory) {
+        String overhead = String.format(RECOMMENDATION_PROMPT_REPHRASED, rephrasedStory, "");
         int overheadTokens = estimateTokenCount(overhead);
         int budgetPerChunk = MAX_PROMPT_TOKENS - overheadTokens;
 
+        return splitRepoContextWithBudget(scanResult, budgetPerChunk);
+    }
+
+    private List<String> splitRepoContext(RepoScanResponse scanResult, String title,
+                                          String description, String ac) {
+        String overhead = String.format(RECOMMENDATION_PROMPT_LEGACY, title, description, ac, "");
+        int overheadTokens = estimateTokenCount(overhead);
+        int budgetPerChunk = MAX_PROMPT_TOKENS - overheadTokens;
+
+        return splitRepoContextWithBudget(scanResult, budgetPerChunk);
+    }
+
+    /**
+     * Split the repository context into chunks that each fit within the given
+     * token budget. Repositories are kept whole when possible; oversized repos
+     * have their source-file list truncated.
+     */
+    private List<String> splitRepoContextWithBudget(RepoScanResponse scanResult, int budgetPerChunk) {
         String header = "Folder: " + scanResult.getFolderPath() + "\n"
                 + "Total repositories: " + scanResult.getTotalRepos() + "\n\n";
         int headerTokens = estimateTokenCount(header);
@@ -337,9 +448,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             int repoTokens = estimateTokenCount(repoBlock);
 
             if (repoTokens > budgetPerChunk - headerTokens) {
-                // Single repo is too large — truncate its source file list
                 if (currentTokens > headerTokens) {
-                    // Flush what we have so far
                     chunks.add(currentChunk.toString());
                     currentChunk = new StringBuilder(header);
                     currentTokens = headerTokens;
@@ -354,7 +463,6 @@ public class RecommendationServiceImpl implements RecommendationService {
             }
 
             if (currentTokens + repoTokens > budgetPerChunk) {
-                // Start a new chunk
                 chunks.add(currentChunk.toString());
                 currentChunk = new StringBuilder(header);
                 currentTokens = headerTokens;
@@ -364,12 +472,10 @@ public class RecommendationServiceImpl implements RecommendationService {
             currentTokens += repoTokens;
         }
 
-        // Flush remaining
         if (currentTokens > headerTokens) {
             chunks.add(currentChunk.toString());
         }
 
-        // Safety: at least one chunk
         if (chunks.isEmpty()) {
             chunks.add(header);
         }
