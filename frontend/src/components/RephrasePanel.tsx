@@ -10,13 +10,17 @@ import {
   Fade,
   Chip,
   Divider,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
   AutoFixHigh as RephraseIcon,
   Check as CheckIcon,
   CompareArrows as CompareIcon,
+  Article as ArticleIcon,
 } from '@mui/icons-material';
+import ReactMarkdown from 'react-markdown';
 import type { RephraseResponse } from '../types';
 import { analysisApi } from '../services/api';
 import { colors, gradients } from '../theme/theme';
@@ -26,6 +30,7 @@ interface RephrasePanelProps {
   description: string;
   acceptanceCriteria: string;
   onUseRephrased: (title: string, description: string, ac: string) => void;
+  onRephraseComplete?: () => void;
   disabled?: boolean;
 }
 
@@ -34,11 +39,13 @@ export default function RephrasePanel({
   description,
   acceptanceCriteria,
   onUseRephrased,
+  onRephraseComplete,
   disabled,
 }: RephrasePanelProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RephraseResponse | null>(null);
+  const [viewTab, setViewTab] = useState(0);
 
   const handleRephrase = async () => {
     if (!title.trim() || !description.trim()) {
@@ -57,6 +64,7 @@ export default function RephrasePanel({
         acceptanceCriteria: acceptanceCriteria.trim(),
       });
       setResult(response);
+      onRephraseComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to rephrase story');
     } finally {
@@ -145,11 +153,70 @@ export default function RephrasePanel({
                 </Button>
               </Box>
 
-              <ComparisonRow label="Title" original={result.originalTitle} rephrased={result.rephrasedTitle} />
-              <Divider sx={{ my: 1.5 }} />
-              <ComparisonRow label="Description" original={result.originalDescription} rephrased={result.rephrasedDescription} />
-              <Divider sx={{ my: 1.5 }} />
-              <ComparisonRow label="Acceptance Criteria" original={result.originalAcceptanceCriteria} rephrased={result.rephrasedAcceptanceCriteria} />
+              {/* Tabs: Consolidated view vs Field comparison */}
+              <Tabs
+                value={viewTab}
+                onChange={(_, v) => setViewTab(v)}
+                sx={{
+                  mb: 2,
+                  minHeight: 36,
+                  '& .MuiTab-root': { minHeight: 36, py: 0, fontSize: '0.78rem', textTransform: 'none' },
+                }}
+              >
+                <Tab icon={<ArticleIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Refined Story" />
+                <Tab icon={<CompareIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Field Comparison" />
+              </Tabs>
+
+              {viewTab === 0 && result.refinedStory && (
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: alpha(colors.success, 0.04),
+                    border: `1px solid ${alpha(colors.success, 0.12)}`,
+                    maxHeight: 400,
+                    overflow: 'auto',
+                    '& h1, & h2, & h3': {
+                      fontFamily: '"Manrope", sans-serif',
+                      color: colors.onSurface,
+                      mt: 1.5,
+                      mb: 0.75,
+                    },
+                    '& h2': { fontSize: '0.95rem', fontWeight: 700 },
+                    '& h3': { fontSize: '0.88rem', fontWeight: 600 },
+                    '& p, & li': {
+                      fontSize: '0.84rem',
+                      lineHeight: 1.7,
+                      color: colors.onSurfaceVariant,
+                    },
+                    '& ul, & ol': { pl: 2.5 },
+                    '& strong': { color: colors.onSurface },
+                  }}
+                >
+                  <ReactMarkdown>{result.refinedStory}</ReactMarkdown>
+                </Box>
+              )}
+
+              {viewTab === 1 && (
+                <Box>
+                  <ComparisonRow label="Title" original={result.originalTitle} rephrased={result.rephrasedTitle} />
+                  <Divider sx={{ my: 1.5 }} />
+                  <ComparisonRow label="Description" original={result.originalDescription} rephrased={result.rephrasedDescription} />
+                  <Divider sx={{ my: 1.5 }} />
+                  <ComparisonRow label="Acceptance Criteria" original={result.originalAcceptanceCriteria} rephrased={result.rephrasedAcceptanceCriteria} />
+                </Box>
+              )}
+
+              {/* Fallback: show field comparison if no refined story */}
+              {viewTab === 0 && !result.refinedStory && (
+                <Box>
+                  <ComparisonRow label="Title" original={result.originalTitle} rephrased={result.rephrasedTitle} />
+                  <Divider sx={{ my: 1.5 }} />
+                  <ComparisonRow label="Description" original={result.originalDescription} rephrased={result.rephrasedDescription} />
+                  <Divider sx={{ my: 1.5 }} />
+                  <ComparisonRow label="Acceptance Criteria" original={result.originalAcceptanceCriteria} rephrased={result.rephrasedAcceptanceCriteria} />
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Fade>

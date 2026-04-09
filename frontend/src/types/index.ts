@@ -104,6 +104,8 @@ export interface RephraseResponse {
   rephrasedTitle: string;
   rephrasedDescription: string;
   rephrasedAcceptanceCriteria: string;
+  /** Full consolidated refined story output (markdown). */
+  refinedStory?: string;
 }
 
 // --- Repository scanning types ---

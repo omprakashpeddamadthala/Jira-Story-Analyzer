@@ -20,4 +20,7 @@ public class RephraseResponse {
     private String rephrasedTitle;
     private String rephrasedDescription;
     private String rephrasedAcceptanceCriteria;
+
+    /** The full consolidated refined story output from the AI (markdown). */
+    private String refinedStory;
 }

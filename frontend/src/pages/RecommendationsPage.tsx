@@ -15,13 +15,14 @@ import ApplyChangesPanel from '../components/ApplyChangesPanel';
 import RephrasePanel from '../components/RephrasePanel';
 import type { JiraStory, RepoScanResponse, ChangeItem } from '../types';
 
-const steps = ['Select Story', 'Scan Repos', 'Get Recommendations', 'Apply Changes'];
+const steps = ['Select Story', 'Rephrase Story', 'Scan Repos', 'Get Recommendations', 'Apply Changes'];
 
 export default function RecommendationsPage() {
   const [selectedStory, setSelectedStory] = useState<JiraStory | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
+  const [rephraseComplete, setRephraseComplete] = useState(false);
   const [scanResult, setScanResult] = useState<RepoScanResponse | null>(null);
   const [approvedChanges, setApprovedChanges] = useState<ChangeItem[] | null>(null);
   const [activeStep, setActiveStep] = useState(0);
@@ -31,24 +32,35 @@ export default function RecommendationsPage() {
     setTitle(story.summary);
     setDescription(story.description);
     setAcceptanceCriteria(story.acceptanceCriteria ?? '');
+    // Reset downstream state when a new story is selected
+    setRephraseComplete(false);
+    setScanResult(null);
     setApprovedChanges(null);
     if (activeStep < 1) setActiveStep(1);
   }, [activeStep]);
 
+  const handleRephraseComplete = useCallback(() => {
+    setRephraseComplete(true);
+    if (activeStep < 2) setActiveStep(2);
+  }, [activeStep]);
+
   const handleScanComplete = useCallback((result: RepoScanResponse) => {
     setScanResult(result);
-    if (activeStep < 2) setActiveStep(2);
+    if (activeStep < 3) setActiveStep(3);
   }, [activeStep]);
 
   const handleUseRephrased = useCallback((t: string, d: string, ac: string) => {
     setTitle(t);
     setDescription(d);
     setAcceptanceCriteria(ac);
+    // Reset downstream state since story content changed
+    setScanResult(null);
+    setApprovedChanges(null);
   }, []);
 
   const handleApprove = useCallback((changes: ChangeItem[]) => {
     setApprovedChanges(changes);
-    setActiveStep(3);
+    setActiveStep(4);
   }, []);
 
   return (
@@ -69,7 +81,7 @@ export default function RecommendationsPage() {
           Recommendations & Apply
         </Typography>
         <Typography sx={{ color: colors.onSurfaceVariant, fontSize: '0.9rem' }}>
-          Select a story, scan repos, generate recommendations, and apply changes
+          Select a story, rephrase it, scan repos, generate recommendations, and apply changes
         </Typography>
       </Box>
 
@@ -108,6 +120,7 @@ export default function RecommendationsPage() {
                   description={description}
                   acceptanceCriteria={acceptanceCriteria}
                   onUseRephrased={handleUseRephrased}
+                  onRephraseComplete={handleRephraseComplete}
                 />
               </Box>
             </Fade>
@@ -115,8 +128,8 @@ export default function RecommendationsPage() {
         </Box>
       </Box>
 
-      {/* Step 2: Scan Repos */}
-      {selectedStory && (
+      {/* Step 3: Scan Repos — only available after rephrase is complete */}
+      {selectedStory && rephraseComplete && (
         <Fade in timeout={400}>
           <Box>
             <RepoScanner onScanComplete={handleScanComplete} />
@@ -124,7 +137,7 @@ export default function RecommendationsPage() {
         </Fade>
       )}
 
-      {/* Step 3: Generate Recommendations */}
+      {/* Step 4: Generate Recommendations — only available after scan is complete */}
       {scanResult && selectedStory && (
         <Fade in timeout={400}>
           <Box>
@@ -140,7 +153,7 @@ export default function RecommendationsPage() {
         </Fade>
       )}
 
-      {/* Step 4: Apply Changes */}
+      {/* Step 5: Apply Changes — only available after recommendations are approved */}
       {approvedChanges && approvedChanges.length > 0 && selectedStory && (
         <Fade in timeout={400}>
           <Box>
