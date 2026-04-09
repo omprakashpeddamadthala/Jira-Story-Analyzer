@@ -582,20 +582,22 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     /**
      * Merge multiple partial recommendation responses into a single response.
-     * Summaries are concatenated and de-duplicated repos/changes are combined.
+     * The longest non-empty summary is selected (it typically covers the most repos).
+     * Repos and changes from all chunks are combined.
      */
     private RecommendationResponse mergeResponses(List<RecommendationResponse> responses, String jiraKey) {
         if (responses.size() == 1) {
             return responses.get(0);
         }
 
-        List<String> summaries = new ArrayList<>();
+        String bestSummary = "No summary provided";
         Set<String> impactedRepos = new LinkedHashSet<>();
         List<ChangeRecommendation> allChanges = new ArrayList<>();
 
         for (RecommendationResponse r : responses) {
-            if (r.getSummary() != null && !r.getSummary().isBlank()) {
-                summaries.add(r.getSummary());
+            if (r.getSummary() != null && !r.getSummary().isBlank()
+                    && r.getSummary().length() > bestSummary.length()) {
+                bestSummary = r.getSummary();
             }
             if (r.getImpactedRepos() != null) {
                 impactedRepos.addAll(r.getImpactedRepos());
@@ -604,14 +606,11 @@ public class RecommendationServiceImpl implements RecommendationService {
                 allChanges.addAll(r.getChanges());
             }
         }
-
-        // Use the first non-empty summary instead of concatenating all (avoids repetition)
-        String mergedSummary = summaries.isEmpty() ? "No summary provided" : summaries.get(0);
         log.info("Merged {} partial responses — {} total changes across {} repos",
                 responses.size(), allChanges.size(), impactedRepos.size());
 
         return RecommendationResponse.builder()
-                .summary(mergedSummary)
+                .summary(bestSummary)
                 .jiraKey(jiraKey)
                 .impactedRepos(new ArrayList<>(impactedRepos))
                 .changes(allChanges)
