@@ -36,8 +36,8 @@ export default function RecommendationsPage() {
     setRephraseComplete(false);
     setScanResult(null);
     setApprovedChanges(null);
-    if (activeStep < 1) setActiveStep(1);
-  }, [activeStep]);
+    setActiveStep(1);
+  }, []);
 
   const handleRephraseComplete = useCallback(() => {
     setRephraseComplete(true);
@@ -56,6 +56,7 @@ export default function RecommendationsPage() {
     // Reset downstream state since story content changed
     setScanResult(null);
     setApprovedChanges(null);
+    setActiveStep(2);
   }, []);
 
   const handleApprove = useCallback((changes: ChangeItem[]) => {
