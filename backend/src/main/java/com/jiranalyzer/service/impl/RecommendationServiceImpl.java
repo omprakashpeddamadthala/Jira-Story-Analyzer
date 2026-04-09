@@ -44,24 +44,27 @@ public class RecommendationServiceImpl implements RecommendationService {
 
             ## Instructions
             Based on the refined story and the repository structure, generate a JSON response with:
-            1. A concise overall summary (one paragraph) of the recommended work across all repos
+            1. A concise overall summary (ONE paragraph, max 3 sentences) of the recommended work
             2. Which repositories are impacted
-            3. Specific file-level changes grouped by repository, with rationale, risk assessment, \
-            and structured modifications
+            3. Specific file-level changes grouped by repository
 
-            IMPORTANT: The "summary" field must be a single, non-repetitive overview paragraph. \
-            Do NOT repeat the story title or description in the summary. Focus on what actions \
-            are recommended and why.
+            CRITICAL RULES:
+            - The "summary" field appears ONCE at the top level. Do NOT repeat it anywhere else.
+            - Each "changes" entry groups ALL changes for ONE repository into a SINGLE object.
+            - Do NOT create multiple changes entries for the same repository.
+            - The "rationale" in each change must be specific to THAT repo (e.g. "Add email validation \
+            to OrderRequest.java"), NOT a restatement of the overall summary or story description.
+            - Keep rationale to 1-2 sentences describing the concrete modification.
 
             IMPORTANT: Return ONLY valid JSON matching this exact schema:
             {
-              "summary": "Concise overall summary of recommended changes across all repos",
+              "summary": "One concise paragraph summarizing all recommended changes",
               "impactedRepos": ["repo-name-1", "repo-name-2"],
               "changes": [
                 {
                   "repo": "repo-name",
                   "files": ["path/to/file1.java", "path/to/file2.ts"],
-                  "rationale": "Why this change is needed",
+                  "rationale": "Specific description of what changes in THIS repo and why",
                   "risk": "low|medium|high",
                   "patch": "Human-readable description of the code changes",
                   "fileModifications": [
@@ -108,24 +111,27 @@ public class RecommendationServiceImpl implements RecommendationService {
 
             ## Instructions
             Based on the story requirements and the repository structure, generate a JSON response with:
-            1. A concise overall summary (one paragraph) of the recommended work across all repos
+            1. A concise overall summary (ONE paragraph, max 3 sentences) of the recommended work
             2. Which repositories are impacted
-            3. Specific file-level changes grouped by repository, with rationale, risk assessment, \
-            and structured modifications
+            3. Specific file-level changes grouped by repository
 
-            IMPORTANT: The "summary" field must be a single, non-repetitive overview paragraph. \
-            Do NOT repeat the story title or description in the summary. Focus on what actions \
-            are recommended and why.
+            CRITICAL RULES:
+            - The "summary" field appears ONCE at the top level. Do NOT repeat it anywhere else.
+            - Each "changes" entry groups ALL changes for ONE repository into a SINGLE object.
+            - Do NOT create multiple changes entries for the same repository.
+            - The "rationale" in each change must be specific to THAT repo (e.g. "Add email validation \
+            to OrderRequest.java"), NOT a restatement of the overall summary or story description.
+            - Keep rationale to 1-2 sentences describing the concrete modification.
 
             IMPORTANT: Return ONLY valid JSON matching this exact schema:
             {
-              "summary": "Concise overall summary of recommended changes across all repos",
+              "summary": "One concise paragraph summarizing all recommended changes",
               "impactedRepos": ["repo-name-1", "repo-name-2"],
               "changes": [
                 {
                   "repo": "repo-name",
                   "files": ["path/to/file1.java", "path/to/file2.ts"],
-                  "rationale": "Why this change is needed",
+                  "rationale": "Specific description of what changes in THIS repo and why",
                   "risk": "low|medium|high",
                   "patch": "Human-readable description of the code changes",
                   "fileModifications": [
@@ -599,7 +605,8 @@ public class RecommendationServiceImpl implements RecommendationService {
             }
         }
 
-        String mergedSummary = String.join(" | ", summaries);
+        // Use the first non-empty summary instead of concatenating all (avoids repetition)
+        String mergedSummary = summaries.isEmpty() ? "No summary provided" : summaries.get(0);
         log.info("Merged {} partial responses — {} total changes across {} repos",
                 responses.size(), allChanges.size(), impactedRepos.size());
 

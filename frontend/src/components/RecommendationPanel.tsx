@@ -200,16 +200,34 @@ export default function RecommendationPanel({
 
               {/* Per-repo breakdown */}
               {groupChangesByRepo(result.changes).map(([repo, repoChanges]) => (
-                <Box key={repo} mb={2}>
-                  <Box display="flex" alignItems="center" gap={1} mb={1}>
-                    <Chip
-                      label={repo}
-                      size="small"
-                      sx={{ bgcolor: alpha(colors.primary, 0.1), color: colors.primary, fontWeight: 700, fontSize: '0.8rem' }}
-                    />
-                    <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>
-                      {repoChanges.length} change{repoChanges.length !== 1 ? 's' : ''}
+                <Paper
+                  key={repo}
+                  elevation={0}
+                  sx={{
+                    mb: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(colors.outlineVariant, 0.4)}`,
+                    bgcolor: alpha(colors.surfaceContainer, 0.15),
+                  }}
+                >
+                  <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                    <CodeIcon sx={{ color: colors.primary, fontSize: 20 }} />
+                    <Typography
+                      sx={{
+                        fontFamily: '"Manrope", sans-serif',
+                        fontWeight: 700,
+                        fontSize: '0.92rem',
+                        color: colors.onSurface,
+                      }}
+                    >
+                      {repo}
                     </Typography>
+                    <Chip
+                      label={`${repoChanges.length} change${repoChanges.length !== 1 ? 's' : ''}`}
+                      size="small"
+                      sx={{ height: 22, fontSize: '0.65rem', fontWeight: 600, bgcolor: alpha(colors.primary, 0.08), color: colors.primary }}
+                    />
                   </Box>
                   {repoChanges.map(({ change, originalIndex }) => (
                     <ChangeCard
@@ -221,7 +239,7 @@ export default function RecommendationPanel({
                       onReject={() => toggleReject(originalIndex)}
                     />
                   ))}
-                </Box>
+                </Paper>
               ))}
 
               {/* Apply Button */}
@@ -287,10 +305,6 @@ function ChangeCard({
     >
       <Box display="flex" alignItems="center" justifyContent="space-between">
         <Box display="flex" alignItems="center" gap={1} flex={1}>
-          <CodeIcon sx={{ color: colors.primary, fontSize: 18 }} />
-          <Typography sx={{ fontWeight: 600, fontSize: '0.88rem', color: colors.onSurface }}>
-            {change.repo}
-          </Typography>
           <Chip
             icon={<WarningIcon sx={{ fontSize: '14px !important' }} />}
             label={change.risk}
